@@ -52,21 +52,26 @@ router.get("/assets", requireAuth, async (req, res): Promise<void> => {
     conditions.push(or(
       ilike(assetsTable.name, `%${search}%`),
       ilike(assetsTable.assetTag, `%${search}%`),
+      ilike(assetsTable.serialNumber, `%${search}%`),
+      ilike(assetsTable.location, `%${search}%`),
+      ilike(assetCategoriesTable.name, `%${search}%`),
+      ilike(departmentsTable.name, `%${search}%`)
     ));
   }
 
-  const assets = conditions.length
-    ? await db.select().from(assetsTable).where(and(...conditions)).orderBy(assetsTable.name)
-    : await db.select().from(assetsTable).orderBy(assetsTable.name);
+  const queryResult = await db
+    .select({
+      asset: assetsTable,
+      categoryName: assetCategoriesTable.name,
+      departmentName: departmentsTable.name,
+    })
+    .from(assetsTable)
+    .leftJoin(assetCategoriesTable, eq(assetsTable.categoryId, assetCategoriesTable.id))
+    .leftJoin(departmentsTable, eq(assetsTable.departmentId, departmentsTable.id))
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(assetsTable.name);
 
-  const [cats, depts] = await Promise.all([
-    db.select().from(assetCategoriesTable),
-    db.select().from(departmentsTable),
-  ]);
-  const catMap = new Map(cats.map(c => [c.id, c.name]));
-  const deptMap = new Map(depts.map(d => [d.id, d.name]));
-
-  res.json(assets.map(a => formatAsset(a, a.categoryId ? catMap.get(a.categoryId) ?? null : null, a.departmentId ? deptMap.get(a.departmentId) ?? null : null)));
+  res.json(queryResult.map(r => formatAsset(r.asset, r.categoryName, r.departmentName)));
 });
 
 router.post("/assets", requireAuth, async (req, res): Promise<void> => {
@@ -264,7 +269,7 @@ ONLY return the raw JSON object, without any markdown formatting or extra text.`
           content: query
         }
       ],
-      model: "llama3-8b-8192",
+      model: "llama-3.3-70b-versatile",
       response_format: { type: "json_object" }
     });
 
@@ -287,19 +292,28 @@ ONLY return the raw JSON object, without any markdown formatting or extra text.`
     }
     if (parsed.search) {
       conditions.push(or(
-        ilike(assetsTable.name, `%\${parsed.search}%`),
-        ilike(assetsTable.assetTag, `%\${parsed.search}%`)
+        ilike(assetsTable.name, `%${parsed.search}%`),
+        ilike(assetsTable.assetTag, `%${parsed.search}%`),
+        ilike(assetsTable.serialNumber, `%${parsed.search}%`),
+        ilike(assetsTable.location, `%${parsed.search}%`),
+        ilike(assetCategoriesTable.name, `%${parsed.search}%`),
+        ilike(departmentsTable.name, `%${parsed.search}%`)
       ));
     }
 
-    const assets = conditions.length
-      ? await db.select().from(assetsTable).where(and(...conditions)).orderBy(assetsTable.name)
-      : await db.select().from(assetsTable).orderBy(assetsTable.name);
+    const queryResult = await db
+      .select({
+        asset: assetsTable,
+        categoryName: assetCategoriesTable.name,
+        departmentName: departmentsTable.name,
+      })
+      .from(assetsTable)
+      .leftJoin(assetCategoriesTable, eq(assetsTable.categoryId, assetCategoriesTable.id))
+      .leftJoin(departmentsTable, eq(assetsTable.departmentId, departmentsTable.id))
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(assetsTable.name);
 
-    const catMap = new Map(cats.map(c => [c.id, c.name]));
-    const deptMap = new Map(depts.map(d => [d.id, d.name]));
-
-    res.json(assets.map(a => formatAsset(a, a.categoryId ? catMap.get(a.categoryId) ?? null : null, a.departmentId ? deptMap.get(a.departmentId) ?? null : null)));
+    res.json(queryResult.map(r => formatAsset(r.asset, r.categoryName, r.departmentName)));
   } catch (error) {
     console.error("Smart search error:", error);
     res.status(500).json({ error: "Failed to perform AI smart search" });
