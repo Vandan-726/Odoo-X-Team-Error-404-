@@ -22,6 +22,10 @@ const signupSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Confirm password is required"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 export default function Auth() {
@@ -45,7 +49,7 @@ export default function Auth() {
 
   const signupForm = useForm<z.infer<typeof signupSchema>>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
   });
 
   const onLogin = (values: z.infer<typeof loginSchema>) => {
@@ -64,8 +68,9 @@ export default function Auth() {
   };
 
   const onSignup = (values: z.infer<typeof signupSchema>) => {
+    const { confirmPassword, ...signupData } = values;
     signupMutation.mutate(
-      { data: values },
+      { data: signupData },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
@@ -120,7 +125,12 @@ export default function Auth() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-mono text-xs text-muted-foreground tracking-wider uppercase">Password</FormLabel>
+                        <div className="flex items-center justify-between">
+                          <FormLabel className="font-mono text-xs text-muted-foreground tracking-wider uppercase">Password</FormLabel>
+                          <a href="#" onClick={(e) => { e.preventDefault(); toast.info("Password reset flow is not implemented in this demo."); }} className="text-xs text-primary hover:underline font-mono tracking-wider">
+                            Forgot Password?
+                          </a>
+                        </div>
                         <FormControl>
                           <Input type="password" {...field} className="bg-black/20 border-white/10 focus-visible:ring-primary focus-visible:border-primary" />
                         </FormControl>
@@ -170,6 +180,19 @@ export default function Auth() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="font-mono text-xs text-muted-foreground tracking-wider uppercase">Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} className="bg-black/20 border-white/10 focus-visible:ring-primary focus-visible:border-primary" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-mono text-xs text-muted-foreground tracking-wider uppercase">Confirm Password</FormLabel>
                         <FormControl>
                           <Input type="password" {...field} className="bg-black/20 border-white/10 focus-visible:ring-primary focus-visible:border-primary" />
                         </FormControl>
