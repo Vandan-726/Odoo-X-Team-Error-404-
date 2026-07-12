@@ -681,6 +681,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/MaintenanceRequest"
 
+  /maintenance-requests/diagnose:
+    post:
+      operationId: diagnoseMaintenanceRequest
+      tags: [maintenance]
+      summary: Auto-diagnose a maintenance issue using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagnosticInput"
+      responses:
+        "200":
+          description: Diagnosis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticResponse"
+
   /maintenance-requests/{id}/approve:
     patch:
       operationId: approveMaintenanceRequest
@@ -1823,6 +1842,23 @@ components:
           type: integer
         lastRequest:
           type: ["string", "null"]
+
+    DiagnosticInput:
+      type: object
+      required: [issueDescription]
+      properties:
+        issueDescription:
+          type: string
+
+    DiagnosticResponse:
+      type: object
+      required: [priority, suggestedSteps]
+      properties:
+        priority:
+          type: string
+          enum: [low, medium, high, critical]
+        suggestedSteps:
+          type: string
 
     BookingHeatmapCell:
       type: object

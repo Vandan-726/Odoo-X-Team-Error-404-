@@ -46,6 +46,8 @@ import type {
   Department,
   DepartmentInput,
   DepartmentUpdate,
+  DiagnosticInput,
+  DiagnosticResponse,
   ErrorResponse,
   HealthStatus,
   ListActivityLogsParams,
@@ -2419,6 +2421,77 @@ export const useCreateMaintenanceRequest = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateMaintenanceRequestMutationOptions(options));
+    }
+
+export const getDiagnoseMaintenanceRequestUrl = () => {
+
+
+
+
+  return `/api/maintenance-requests/diagnose`
+}
+
+/**
+ * @summary Auto-diagnose a maintenance issue using AI
+ */
+export const diagnoseMaintenanceRequest = async (diagnosticInput: DiagnosticInput, options?: RequestInit): Promise<DiagnosticResponse> => {
+
+  return customFetch<DiagnosticResponse>(getDiagnoseMaintenanceRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(diagnosticInput)
+  }
+);}
+
+
+
+
+
+export const getDiagnoseMaintenanceRequestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof diagnoseMaintenanceRequest>>, TError,{data: BodyType<DiagnosticInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof diagnoseMaintenanceRequest>>, TError,{data: BodyType<DiagnosticInput>}, TContext> => {
+
+const mutationKey = ['diagnoseMaintenanceRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof diagnoseMaintenanceRequest>>, {data: BodyType<DiagnosticInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  diagnoseMaintenanceRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DiagnoseMaintenanceRequestMutationResult = NonNullable<Awaited<ReturnType<typeof diagnoseMaintenanceRequest>>>
+    export type DiagnoseMaintenanceRequestMutationBody = BodyType<DiagnosticInput>
+    export type DiagnoseMaintenanceRequestMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Auto-diagnose a maintenance issue using AI
+ */
+export const useDiagnoseMaintenanceRequest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof diagnoseMaintenanceRequest>>, TError,{data: BodyType<DiagnosticInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof diagnoseMaintenanceRequest>>,
+        TError,
+        {data: BodyType<DiagnosticInput>},
+        TContext
+      > => {
+      return useMutation(getDiagnoseMaintenanceRequestMutationOptions(options));
     }
 
 export const getApproveMaintenanceRequestUrl = (id: number,) => {

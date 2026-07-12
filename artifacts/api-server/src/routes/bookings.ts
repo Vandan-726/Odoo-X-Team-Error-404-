@@ -61,7 +61,7 @@ router.post("/bookings", requireAuth, async (req, res): Promise<void> => {
     and(
       eq(resourceBookingsTable.assetId, assetId),
       sql`${resourceBookingsTable.status} IN ('upcoming', 'ongoing')`,
-      sql`${resourceBookingsTable.start_time} < ${end.toISOString()} AND ${resourceBookingsTable.end_time} > ${start.toISOString()}`
+      sql`${resourceBookingsTable.startTime} < ${end.toISOString()} AND ${resourceBookingsTable.endTime} > ${start.toISOString()}`
     )
   );
 

@@ -546,6 +546,25 @@ export interface MaintenanceStat {
   lastRequest?: string | null;
 }
 
+export interface DiagnosticInput {
+  issueDescription: string;
+}
+
+export type DiagnosticResponsePriority = typeof DiagnosticResponsePriority[keyof typeof DiagnosticResponsePriority];
+
+
+export const DiagnosticResponsePriority = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  critical: 'critical',
+} as const;
+
+export interface DiagnosticResponse {
+  priority: DiagnosticResponsePriority;
+  suggestedSteps: string;
+}
+
 export interface BookingHeatmapCell {
   dayOfWeek: number;
   hour: number;
