@@ -58,6 +58,7 @@ export * from './maintenanceStat';
 export * from './notification';
 export * from './returnInput';
 export * from './signupInput';
+export * from './smartSearchInput';
 export * from './successResponse';
 export * from './technicianAssignment';
 export * from './transferRequest';

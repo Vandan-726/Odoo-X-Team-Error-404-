@@ -30,6 +30,10 @@ export interface LoginInput {
   password: string;
 }
 
+export interface SmartSearchInput {
+  query: string;
+}
+
 export interface AuthUser {
   id: number;
   name: string;
