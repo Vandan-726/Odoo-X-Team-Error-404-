@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "AssetFlow"
+version = "1.0.0"
+id = "artifacts/assetflow"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23837
+
+[services.development]
+run = "pnpm --filter @workspace/assetflow run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/assetflow", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/assetflow/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23837"
+BASE_PATH = "/"

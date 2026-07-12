@@ -3,20 +3,46 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AssetFlow Enterprise Asset & Resource Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: departments
+    description: Department management
+  - name: categories
+    description: Asset category management
+  - name: users
+    description: User management
+  - name: assets
+    description: Asset management
+  - name: allocations
+    description: Asset allocation management
+  - name: transfers
+    description: Transfer request management
+  - name: bookings
+    description: Resource booking management
+  - name: maintenance
+    description: Maintenance request management
+  - name: audits
+    description: Audit cycle management
+  - name: reports
+    description: Reports and analytics
+  - name: notifications
+    description: Notification management
+  - name: activity
+    description: Activity log
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +50,1787 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: Register new account (role forced to employee)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupInput"
+      responses:
+        "201":
+          description: Signed up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Log out
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current session user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /departments:
+    get:
+      operationId: listDepartments
+      tags: [departments]
+      summary: List all departments
+      responses:
+        "200":
+          description: List of departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Department"
+    post:
+      operationId: createDepartment
+      tags: [departments]
+      summary: Create a department
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+
+  /departments/{id}:
+    patch:
+      operationId: updateDepartment
+      tags: [departments]
+      summary: Update a department
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DepartmentUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Department"
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all asset categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssetCategory"
+    post:
+      operationId: createCategory
+      tags: [categories]
+      summary: Create an asset category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetCategoryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetCategory"
+
+  /categories/{id}:
+    patch:
+      operationId: updateCategory
+      tags: [categories]
+      summary: Update an asset category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetCategoryUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetCategory"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      parameters:
+        - name: department
+          in: query
+          schema:
+            type: integer
+        - name: role
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/{id}/role:
+    patch:
+      operationId: updateUserRole
+      tags: [users]
+      summary: Update user role (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRoleInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}/status:
+    patch:
+      operationId: updateUserStatus
+      tags: [users]
+      summary: Update user status (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserStatusInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /assets:
+    get:
+      operationId: listAssets
+      tags: [assets]
+      summary: List assets with optional filters
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: integer
+        - name: department
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Asset"
+    post:
+      operationId: createAsset
+      tags: [assets]
+      summary: Register a new asset (asset_manager, admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+
+  /assets/{id}:
+    get:
+      operationId: getAsset
+      tags: [assets]
+      summary: Get asset detail with allocation and maintenance history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Asset detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetDetail"
+    patch:
+      operationId: updateAsset
+      tags: [assets]
+      summary: Update asset information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+
+  /allocations:
+    get:
+      operationId: listAllocations
+      tags: [allocations]
+      summary: List all allocations
+      parameters:
+        - name: assetId
+          in: query
+          schema:
+            type: integer
+        - name: employeeId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of allocations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AllocationWithDetails"
+    post:
+      operationId: createAllocation
+      tags: [allocations]
+      summary: Allocate an asset to an employee (409 if not available)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AllocationInput"
+      responses:
+        "201":
+          description: Allocated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Allocation"
+        "409":
+          description: Asset not available (includes current holder info)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllocationConflict"
+
+  /allocations/overdue:
+    get:
+      operationId: listOverdueAllocations
+      tags: [allocations]
+      summary: List active allocations with past expected return date
+      responses:
+        "200":
+          description: Overdue allocations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AllocationWithDetails"
+
+  /allocations/{id}/return:
+    post:
+      operationId: returnAllocation
+      tags: [allocations]
+      summary: Return an allocated asset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnInput"
+      responses:
+        "200":
+          description: Returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Allocation"
+
+  /transfer-requests:
+    get:
+      operationId: listTransferRequests
+      tags: [transfers]
+      summary: List transfer requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of transfer requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TransferRequest"
+    post:
+      operationId: createTransferRequest
+      tags: [transfers]
+      summary: Request asset transfer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferRequestInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferRequest"
+
+  /transfer-requests/{id}/approve:
+    patch:
+      operationId: approveTransferRequest
+      tags: [transfers]
+      summary: Approve a transfer request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferRequest"
+
+  /transfer-requests/{id}/reject:
+    patch:
+      operationId: rejectTransferRequest
+      tags: [transfers]
+      summary: Reject a transfer request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransferRequest"
+
+  /bookings:
+    get:
+      operationId: listBookings
+      tags: [bookings]
+      summary: List resource bookings
+      parameters:
+        - name: assetId
+          in: query
+          schema:
+            type: integer
+        - name: date
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Booking"
+    post:
+      operationId: createBooking
+      tags: [bookings]
+      summary: Create a resource booking (409 on overlap)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookingInput"
+      responses:
+        "201":
+          description: Booked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+        "409":
+          description: Booking slot conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingConflict"
+
+  /bookings/{id}/cancel:
+    patch:
+      operationId: cancelBooking
+      tags: [bookings]
+      summary: Cancel a booking
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Booking"
+
+  /maintenance-requests:
+    get:
+      operationId: listMaintenanceRequests
+      tags: [maintenance]
+      summary: List maintenance requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of maintenance requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MaintenanceRequest"
+    post:
+      operationId: createMaintenanceRequest
+      tags: [maintenance]
+      summary: Raise a maintenance request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MaintenanceRequestInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRequest"
+
+  /maintenance-requests/{id}/approve:
+    patch:
+      operationId: approveMaintenanceRequest
+      tags: [maintenance]
+      summary: Approve a maintenance request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRequest"
+
+  /maintenance-requests/{id}/reject:
+    patch:
+      operationId: rejectMaintenanceRequest
+      tags: [maintenance]
+      summary: Reject a maintenance request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRequest"
+
+  /maintenance-requests/{id}/assign-technician:
+    patch:
+      operationId: assignTechnician
+      tags: [maintenance]
+      summary: Assign a technician to a maintenance request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TechnicianAssignment"
+      responses:
+        "200":
+          description: Assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRequest"
+
+  /maintenance-requests/{id}/resolve:
+    patch:
+      operationId: resolveMaintenanceRequest
+      tags: [maintenance]
+      summary: Mark maintenance request as resolved
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceRequest"
+
+  /audit-cycles:
+    get:
+      operationId: listAuditCycles
+      tags: [audits]
+      summary: List audit cycles
+      responses:
+        "200":
+          description: List of audit cycles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditCycle"
+    post:
+      operationId: createAuditCycle
+      tags: [audits]
+      summary: Create a new audit cycle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditCycleInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditCycle"
+
+  /audit-cycles/{id}:
+    get:
+      operationId: getAuditCycle
+      tags: [audits]
+      summary: Get audit cycle with items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audit cycle detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditCycleDetail"
+
+  /audit-cycles/{id}/items/{itemId}/verify:
+    post:
+      operationId: verifyAuditItem
+      tags: [audits]
+      summary: Verify or flag an audit item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditItemVerification"
+      responses:
+        "200":
+          description: Verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditItem"
+
+  /audit-cycles/{id}/close:
+    post:
+      operationId: closeAuditCycle
+      tags: [audits]
+      summary: Close audit cycle transactionally - marks missing items as lost
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditCycle"
+
+  /reports/utilization:
+    get:
+      operationId: getUtilizationReport
+      tags: [reports]
+      summary: Asset utilization by category
+      responses:
+        "200":
+          description: Utilization data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UtilizationStat"
+
+  /reports/maintenance-frequency:
+    get:
+      operationId: getMaintenanceFrequencyReport
+      tags: [reports]
+      summary: Maintenance frequency by asset
+      responses:
+        "200":
+          description: Maintenance frequency data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MaintenanceStat"
+
+  /reports/idle-assets:
+    get:
+      operationId: getIdleAssetsReport
+      tags: [reports]
+      summary: Idle unallocated assets list
+      responses:
+        "200":
+          description: Idle assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Asset"
+
+  /reports/booking-heatmap:
+    get:
+      operationId: getBookingHeatmap
+      tags: [reports]
+      summary: Booking frequency by day of week and hour
+      responses:
+        "200":
+          description: Booking heatmap data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingHeatmapCell"
+
+  /reports/dashboard:
+    get:
+      operationId: getDashboardStats
+      tags: [reports]
+      summary: Dashboard KPI summary with recent activity
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for current user
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/read-all:
+    patch:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: All marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /activity-logs:
+    get:
+      operationId: listActivityLogs
+      tags: [activity]
+      summary: List activity logs
+      parameters:
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of activity logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityLog"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+
+    SignupInput:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 6
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    AuthUser:
+      type: object
+      required: [id, name, email, role, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        status:
+          type: string
+        departmentId:
+          type: ["integer", "null"]
+        departmentName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    Department:
+      type: object
+      required: [id, name, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        headUserId:
+          type: ["integer", "null"]
+        headUserName:
+          type: ["string", "null"]
+        parentDepartmentId:
+          type: ["integer", "null"]
+        parentDepartmentName:
+          type: ["string", "null"]
+        status:
+          type: string
+        createdAt:
+          type: string
+        employeeCount:
+          type: integer
+
+    DepartmentInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        headUserId:
+          type: ["integer", "null"]
+        parentDepartmentId:
+          type: ["integer", "null"]
+        status:
+          type: string
+
+    DepartmentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        headUserId:
+          type: ["integer", "null"]
+        parentDepartmentId:
+          type: ["integer", "null"]
+        status:
+          type: string
+
+    AssetCategory:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        extraFields:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+
+    AssetCategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        extraFields:
+          type: object
+          additionalProperties: true
+
+    AssetCategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        extraFields:
+          type: object
+          additionalProperties: true
+
+    User:
+      type: object
+      required: [id, name, email, role, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        departmentId:
+          type: ["integer", "null"]
+        departmentName:
+          type: ["string", "null"]
+        status:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    UserRoleInput:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+
+    UserStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    Asset:
+      type: object
+      required: [id, assetTag, name, status, createdAt]
+      properties:
+        id:
+          type: integer
+        assetTag:
+          type: string
+        name:
+          type: string
+        categoryId:
+          type: ["integer", "null"]
+        categoryName:
+          type: ["string", "null"]
+        serialNumber:
+          type: ["string", "null"]
+        acquisitionDate:
+          type: ["string", "null"]
+        acquisitionCost:
+          type: ["number", "null"]
+        condition:
+          type: string
+        location:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        isBookable:
+          type: boolean
+        status:
+          type: string
+        departmentId:
+          type: ["integer", "null"]
+        departmentName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    AssetDetail:
+      type: object
+      required: [id, assetTag, name, status, createdAt, allocationHistory, maintenanceHistory]
+      properties:
+        id:
+          type: integer
+        assetTag:
+          type: string
+        name:
+          type: string
+        categoryId:
+          type: ["integer", "null"]
+        categoryName:
+          type: ["string", "null"]
+        serialNumber:
+          type: ["string", "null"]
+        acquisitionDate:
+          type: ["string", "null"]
+        acquisitionCost:
+          type: ["number", "null"]
+        condition:
+          type: string
+        location:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        isBookable:
+          type: boolean
+        status:
+          type: string
+        departmentId:
+          type: ["integer", "null"]
+        departmentName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        allocationHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllocationWithDetails"
+        maintenanceHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/MaintenanceRequest"
+
+    AssetInput:
+      type: object
+      required: [assetTag, name]
+      properties:
+        assetTag:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        categoryId:
+          type: ["integer", "null"]
+        serialNumber:
+          type: ["string", "null"]
+        acquisitionDate:
+          type: ["string", "null"]
+        acquisitionCost:
+          type: ["number", "null"]
+        condition:
+          type: string
+        location:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        isBookable:
+          type: boolean
+        status:
+          type: string
+        departmentId:
+          type: ["integer", "null"]
+
+    AssetUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        categoryId:
+          type: ["integer", "null"]
+        serialNumber:
+          type: ["string", "null"]
+        acquisitionDate:
+          type: ["string", "null"]
+        acquisitionCost:
+          type: ["number", "null"]
+        condition:
+          type: string
+        location:
+          type: ["string", "null"]
+        photoUrl:
+          type: ["string", "null"]
+        isBookable:
+          type: boolean
+        status:
+          type: string
+        departmentId:
+          type: ["integer", "null"]
+
+    Allocation:
+      type: object
+      required: [id, assetId, employeeId, allocatedAt, status]
+      properties:
+        id:
+          type: integer
+        assetId:
+          type: integer
+        employeeId:
+          type: integer
+        departmentId:
+          type: ["integer", "null"]
+        allocatedAt:
+          type: string
+        expectedReturnDate:
+          type: ["string", "null"]
+        returnedAt:
+          type: ["string", "null"]
+        returnConditionNotes:
+          type: ["string", "null"]
+        status:
+          type: string
+        createdBy:
+          type: ["integer", "null"]
+
+    AllocationWithDetails:
+      type: object
+      required: [id, assetId, employeeId, allocatedAt, status, isOverdue]
+      properties:
+        id:
+          type: integer
+        assetId:
+          type: integer
+        assetTag:
+          type: ["string", "null"]
+        assetName:
+          type: ["string", "null"]
+        employeeId:
+          type: integer
+        employeeName:
+          type: ["string", "null"]
+        departmentId:
+          type: ["integer", "null"]
+        departmentName:
+          type: ["string", "null"]
+        allocatedAt:
+          type: string
+        expectedReturnDate:
+          type: ["string", "null"]
+        returnedAt:
+          type: ["string", "null"]
+        returnConditionNotes:
+          type: ["string", "null"]
+        status:
+          type: string
+        isOverdue:
+          type: boolean
+
+    AllocationInput:
+      type: object
+      required: [assetId, employeeId]
+      properties:
+        assetId:
+          type: integer
+        employeeId:
+          type: integer
+        departmentId:
+          type: ["integer", "null"]
+        expectedReturnDate:
+          type: ["string", "null"]
+
+    AllocationConflict:
+      type: object
+      required: [error, currentHolderName, allocationId]
+      properties:
+        error:
+          type: string
+        currentHolderName:
+          type: string
+        currentHolderDepartment:
+          type: ["string", "null"]
+        allocationId:
+          type: integer
+
+    ReturnInput:
+      type: object
+      properties:
+        returnConditionNotes:
+          type: ["string", "null"]
+
+    TransferRequest:
+      type: object
+      required: [id, assetId, toEmployeeId, status, requestedAt]
+      properties:
+        id:
+          type: integer
+        assetId:
+          type: integer
+        assetName:
+          type: ["string", "null"]
+        assetTag:
+          type: ["string", "null"]
+        fromEmployeeId:
+          type: ["integer", "null"]
+        fromEmployeeName:
+          type: ["string", "null"]
+        toEmployeeId:
+          type: integer
+        toEmployeeName:
+          type: ["string", "null"]
+        reason:
+          type: ["string", "null"]
+        status:
+          type: string
+        requestedBy:
+          type: ["integer", "null"]
+        approvedBy:
+          type: ["integer", "null"]
+        requestedAt:
+          type: string
+        resolvedAt:
+          type: ["string", "null"]
+
+    TransferRequestInput:
+      type: object
+      required: [assetId, toEmployeeId]
+      properties:
+        assetId:
+          type: integer
+        toEmployeeId:
+          type: integer
+        reason:
+          type: ["string", "null"]
+
+    Booking:
+      type: object
+      required: [id, assetId, bookedBy, startTime, endTime, status, createdAt]
+      properties:
+        id:
+          type: integer
+        assetId:
+          type: integer
+        assetName:
+          type: ["string", "null"]
+        bookedBy:
+          type: integer
+        bookedByName:
+          type: ["string", "null"]
+        departmentId:
+          type: ["integer", "null"]
+        purpose:
+          type: ["string", "null"]
+        startTime:
+          type: string
+        endTime:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+
+    BookingInput:
+      type: object
+      required: [assetId, startTime, endTime]
+      properties:
+        assetId:
+          type: integer
+        departmentId:
+          type: ["integer", "null"]
+        purpose:
+          type: ["string", "null"]
+        startTime:
+          type: string
+        endTime:
+          type: string
+
+    BookingConflict:
+      type: object
+      required: [error, conflictingBookings]
+      properties:
+        error:
+          type: string
+        conflictingBookings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Booking"
+
+    MaintenanceRequest:
+      type: object
+      required: [id, assetId, raisedBy, issueDescription, priority, status, createdAt]
+      properties:
+        id:
+          type: integer
+        assetId:
+          type: integer
+        assetName:
+          type: ["string", "null"]
+        assetTag:
+          type: ["string", "null"]
+        raisedBy:
+          type: integer
+        raisedByName:
+          type: ["string", "null"]
+        issueDescription:
+          type: string
+        priority:
+          type: string
+        photoUrl:
+          type: ["string", "null"]
+        status:
+          type: string
+        assignedTechnician:
+          type: ["string", "null"]
+        approvedBy:
+          type: ["integer", "null"]
+        resolvedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    MaintenanceRequestInput:
+      type: object
+      required: [assetId, issueDescription, priority]
+      properties:
+        assetId:
+          type: integer
+        issueDescription:
+          type: string
+          minLength: 1
+        priority:
+          type: string
+        photoUrl:
+          type: ["string", "null"]
+
+    TechnicianAssignment:
+      type: object
+      required: [assignedTechnician]
+      properties:
+        assignedTechnician:
+          type: string
+          minLength: 1
+
+    AuditCycle:
+      type: object
+      required: [id, name, startDate, endDate, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        scopeDepartmentId:
+          type: ["integer", "null"]
+        scopeDepartmentName:
+          type: ["string", "null"]
+        scopeLocation:
+          type: ["string", "null"]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        status:
+          type: string
+        createdBy:
+          type: ["integer", "null"]
+        closedAt:
+          type: ["string", "null"]
+        auditors:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+
+    AuditCycleDetail:
+      type: object
+      required: [id, name, startDate, endDate, status, items]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        scopeDepartmentId:
+          type: ["integer", "null"]
+        scopeDepartmentName:
+          type: ["string", "null"]
+        scopeLocation:
+          type: ["string", "null"]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        status:
+          type: string
+        createdBy:
+          type: ["integer", "null"]
+        closedAt:
+          type: ["string", "null"]
+        auditors:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditItem"
+        summary:
+          $ref: "#/components/schemas/AuditSummary"
+
+    AuditCycleInput:
+      type: object
+      required: [name, startDate, endDate]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        scopeDepartmentId:
+          type: ["integer", "null"]
+        scopeLocation:
+          type: ["string", "null"]
+        startDate:
+          type: string
+        endDate:
+          type: string
+        auditorIds:
+          type: array
+          items:
+            type: integer
+        assetIds:
+          type: array
+          items:
+            type: integer
+
+    AuditItem:
+      type: object
+      required: [id, auditCycleId, assetId, verificationStatus]
+      properties:
+        id:
+          type: integer
+        auditCycleId:
+          type: integer
+        assetId:
+          type: integer
+        assetName:
+          type: ["string", "null"]
+        assetTag:
+          type: ["string", "null"]
+        expectedLocation:
+          type: ["string", "null"]
+        verificationStatus:
+          type: string
+        notes:
+          type: ["string", "null"]
+        verifiedBy:
+          type: ["integer", "null"]
+        verifiedByName:
+          type: ["string", "null"]
+        verifiedAt:
+          type: ["string", "null"]
+
+    AuditItemVerification:
+      type: object
+      required: [verificationStatus]
+      properties:
+        verificationStatus:
+          type: string
+        notes:
+          type: ["string", "null"]
+
+    AuditSummary:
+      type: object
+      required: [total, verified, missing, damaged, pending]
+      properties:
+        total:
+          type: integer
+        verified:
+          type: integer
+        missing:
+          type: integer
+        damaged:
+          type: integer
+        pending:
+          type: integer
+
+    Notification:
+      type: object
+      required: [id, userId, type, message, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        type:
+          type: string
+        message:
+          type: string
+        referenceType:
+          type: ["string", "null"]
+        referenceId:
+          type: ["integer", "null"]
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+
+    ActivityLog:
+      type: object
+      required: [id, action, entityType, createdAt, entryHash]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: ["integer", "null"]
+        userName:
+          type: ["string", "null"]
+        action:
+          type: string
+        entityType:
+          type: string
+        entityId:
+          type: ["integer", "null"]
+        metadata:
+          type: object
+          additionalProperties: true
+        createdAt:
+          type: string
+        entryHash:
+          type: string
+
+    DashboardStats:
+      type: object
+      required: [totalAssets, availableAssets, allocatedAssets, maintenanceToday, activeBookings, pendingTransfers, upcomingReturns, overdueCount]
+      properties:
+        totalAssets:
+          type: integer
+        availableAssets:
+          type: integer
+        allocatedAssets:
+          type: integer
+        maintenanceToday:
+          type: integer
+        activeBookings:
+          type: integer
+        pendingTransfers:
+          type: integer
+        upcomingReturns:
+          type: integer
+        overdueCount:
+          type: integer
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityLog"
+
+    UtilizationStat:
+      type: object
+      required: [categoryName, total, allocated, available, utilizationRate]
+      properties:
+        categoryName:
+          type: string
+        total:
+          type: integer
+        allocated:
+          type: integer
+        available:
+          type: integer
+        utilizationRate:
+          type: number
+
+    MaintenanceStat:
+      type: object
+      required: [assetId, assetName, assetTag, requestCount]
+      properties:
+        assetId:
+          type: integer
+        assetName:
+          type: string
+        assetTag:
+          type: string
+        requestCount:
+          type: integer
+        lastRequest:
+          type: ["string", "null"]
+
+    BookingHeatmapCell:
+      type: object
+      required: [dayOfWeek, hour, count]
+      properties:
+        dayOfWeek:
+          type: integer
+        hour:
+          type: integer
+        count:
+          type: integer

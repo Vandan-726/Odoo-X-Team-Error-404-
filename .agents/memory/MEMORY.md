@@ -1,0 +1,1 @@
+- [AssetFlow build](assetflow-build.md) — full-stack asset management app; backend routes, auth, seed, and codegen all wired up
