@@ -49,7 +49,7 @@ export function Shell({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    return <>{children}</>;
+    return null;
   }
 
   const handleLogout = () => {
@@ -123,7 +123,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <div className="p-6 border-t border-sidebar-border">
           <div className="flex flex-col gap-1 mb-4">
             <span className="text-sm font-bold truncate">{user.name}</span>
-            <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider truncate">{user.role.replace('_', ' ')}</span>
+            <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider truncate">{user.role?.replace('_', ' ') || ''}</span>
           </div>
           <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20 font-mono tracking-wider" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />

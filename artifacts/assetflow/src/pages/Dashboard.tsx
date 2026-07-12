@@ -40,7 +40,7 @@ export default function Dashboard() {
       </div>
 
       {/* OVERDUE ALERTS */}
-      {!isOverdueLoading && overdue && overdue.length > 0 && (
+      {!isOverdueLoading && Array.isArray(overdue) && overdue.length > 0 && (
         <Card className="border-destructive border-2 bg-destructive/5 shadow-[0_0_15px_rgba(82,0,255,0.2)]">
           <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-destructive font-mono uppercase tracking-widest flex items-center gap-2">
@@ -81,7 +81,7 @@ export default function Dashboard() {
       {/* KPI ROW */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {kpis.map((kpi, idx) => (
-          <Card key={idx} className={`bg-card overflow-hidden group ${(pki as any)?.highlight ? 'border-accent/50' : 'border-card-border'}`}>
+          <Card key={idx} className={`bg-card overflow-hidden group ${(kpi as any)?.highlight ? 'border-accent/50' : 'border-card-border'}`}>
             <CardContent className="p-5 flex flex-col justify-between h-full relative">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">{kpi.label}</div>
               <div className="flex items-end gap-2 mt-auto">

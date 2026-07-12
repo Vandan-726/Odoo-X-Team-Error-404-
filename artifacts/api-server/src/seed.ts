@@ -1,3 +1,20 @@
+import path from "path";
+import fs from "fs";
+
+// Fallback to load ../../.env if dotenv/config didn't find it in api-server
+const envPath = path.join(process.cwd(), "../../.env");
+if (fs.existsSync(envPath)) {
+  const envConfig = fs.readFileSync(envPath, "utf-8");
+  envConfig.split("\n").forEach(line => {
+    const match = line.match(/^([^=]+)=(.*)$/);
+    if (match) {
+      const key = match[1].trim();
+      const value = match[2].trim().replace(/(^"|"$)/g, "");
+      if (!process.env[key]) process.env[key] = value;
+    }
+  });
+}
+
 import bcrypt from "bcrypt";
 import {
   db,

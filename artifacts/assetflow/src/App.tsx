@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -41,11 +41,7 @@ function Router() {
       <Route path="/audit" component={Audit} />
       <Route path="/reports" component={Reports} />
       <Route path="/notifications" component={Notifications} />
-      <Route path="/" component={() => {
-        // Simple redirect
-        window.location.href = "/dashboard";
-        return null;
-      }} />
+      <Route path="/" component={() => <Redirect to="/dashboard" />} />
       <Route component={NotFound} />
     </Switch>
   );
