@@ -87,7 +87,7 @@ export default function Reports() {
         
         {/* Utilization Chart */}
         <Card className="bg-card border-card-border overflow-hidden">
-          <CardHeader className="border-b border-white/5 bg-black/20 pb-4">
+          <CardHeader className="border-b border-border bg-muted/20 pb-4">
             <CardTitle className="font-mono text-sm tracking-widest text-muted-foreground uppercase flex items-center gap-2">
               <PieChart className="w-4 h-4" /> Category Utilization
             </CardTitle>
@@ -115,7 +115,7 @@ export default function Reports() {
 
         {/* Maintenance Frequency */}
         <Card className="bg-card border-card-border overflow-hidden">
-          <CardHeader className="border-b border-white/5 bg-black/20 pb-4">
+          <CardHeader className="border-b border-border bg-muted/20 pb-4">
             <CardTitle className="font-mono text-sm tracking-widest text-muted-foreground uppercase flex items-center gap-2">
               <Activity className="w-4 h-4" /> Failure Frequency (Top 10)
             </CardTitle>
@@ -141,7 +141,7 @@ export default function Reports() {
 
         {/* Idle Assets List */}
         <Card className="lg:col-span-2 bg-card border-card-border">
-          <CardHeader className="border-b border-white/5 bg-black/20 pb-4">
+          <CardHeader className="border-b border-border bg-muted/20 pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="font-mono text-sm tracking-widest text-muted-foreground uppercase flex items-center gap-2">
                 <Hexagon className="w-4 h-4" /> Underutilized Capital (Idle {'>'} 30 Days)
@@ -152,7 +152,7 @@ export default function Reports() {
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="border-white/5 hover:bg-transparent bg-black/40">
+                <TableRow className="border-border hover:bg-transparent bg-muted/40">
                   <TableHead className="font-mono text-[10px] uppercase tracking-widest pl-6 py-3 w-[150px]">Asset Tag</TableHead>
                   <TableHead className="font-mono text-[10px] uppercase tracking-widest py-3">Model / Name</TableHead>
                   <TableHead className="font-mono text-[10px] uppercase tracking-widest py-3">Category</TableHead>
@@ -166,7 +166,7 @@ export default function Reports() {
                   <TableRow><TableCell colSpan={4} className="text-center py-8 font-mono text-xs text-muted-foreground">NO IDLE ASSETS DETECTED</TableCell></TableRow>
                 ) : (
                   idleData?.map((asset: any) => (
-                    <TableRow key={asset.id} className="border-white/5 hover:bg-white/5">
+                    <TableRow key={asset.id} className="border-border hover:bg-muted/50 transition-colors">
                       <TableCell className="pl-6 font-mono font-bold text-xs">{asset.assetTag}</TableCell>
                       <TableCell className="font-medium text-sm">{asset.name}</TableCell>
                       <TableCell className="text-muted-foreground text-xs">{asset.categoryName || 'Unknown'}</TableCell>

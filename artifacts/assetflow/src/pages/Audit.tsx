@@ -47,8 +47,6 @@ export default function Audit() {
     query: { enabled: !!selectedCycleId } as any
   });
 
-  const { data: departments } = useListDepartments();
-
   const createCycle = useCreateAuditCycle();
   const verifyItem = useVerifyAuditItem();
   const closeCycle = useCloseAuditCycle();

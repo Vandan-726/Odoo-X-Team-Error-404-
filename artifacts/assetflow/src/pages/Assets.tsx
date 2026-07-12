@@ -28,7 +28,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Asset, AssetInput } from "@workspace/api-client-react";
 import { AssetDetailSheet } from "./AssetDetailSheet";
 
 const assetSchema = z.object({

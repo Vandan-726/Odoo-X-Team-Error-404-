@@ -86,7 +86,7 @@ export default function Dashboard() {
       {/* KPI ROW */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {kpis.map((kpi, idx) => (
-          <Card key={idx} className={`bg-card overflow-hidden group ${(kpi as any)?.highlight ? 'border-accent/50' : 'border-card-border'}`}>
+          <Card key={idx} className={`bg-card overflow-hidden group hover:-translate-y-1 hover:shadow-lg transition-all duration-300 ${(kpi as any)?.highlight ? 'border-accent/50' : 'border-card-border'}`}>
             <CardContent className="p-5 flex flex-col justify-between h-full relative">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">{kpi.label}</div>
               <div className="flex items-end gap-2 mt-auto">
@@ -105,26 +105,26 @@ export default function Dashboard() {
 
       {/* QUICK ACTIONS */}
       <div className="flex flex-wrap gap-3">
-        <Button className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs" asChild>
+        <Button className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs hover:-translate-y-1 hover:shadow-md transition-all duration-300" asChild>
           <Link href="/assets?new=true">
             <PackageSearch className="mr-2 h-4 w-4 text-primary" />
             Register Asset
           </Link>
         </Button>
         <Button 
-          className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs"
+          className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs hover:-translate-y-1 hover:shadow-md transition-all duration-300"
           onClick={() => setIsScannerOpen(true)}
         >
           <QrCode className="mr-2 h-4 w-4 text-primary" />
           Scan Asset
         </Button>
-        <Button className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs" asChild>
+        <Button className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs hover:-translate-y-1 hover:shadow-md transition-all duration-300" asChild>
           <Link href="/allocations">
             <ArrowRightLeft className="mr-2 h-4 w-4 text-primary" />
             New Allocation
           </Link>
         </Button>
-        <Button className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs" asChild>
+        <Button className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs hover:-translate-y-1 hover:shadow-md transition-all duration-300" asChild>
           <Link href="/bookings">
             <CalendarRange className="mr-2 h-4 w-4 text-primary" />
             Book Resource
@@ -149,7 +149,7 @@ export default function Dashboard() {
               <div className="text-center p-8 text-muted-foreground font-mono text-sm uppercase">Loading Feed...</div>
             ) : stats?.recentActivity && stats.recentActivity.length > 0 ? (
               stats.recentActivity.map((log, i) => (
-                <div key={log.id} className={`flex gap-4 p-4 hover:bg-white/5 transition-colors ${i !== stats.recentActivity!.length - 1 ? 'border-b border-white/5' : ''}`}>
+                <div key={log.id} className={`flex gap-4 p-4 hover:bg-muted/50 transition-colors ${i !== stats.recentActivity!.length - 1 ? 'border-b border-white/5' : ''}`}>
                   <div className="w-24 shrink-0 pt-0.5 text-[10px] font-mono text-muted-foreground uppercase">
                     {formatDistanceToNow(parseISO(log.createdAt))} ago
                   </div>
