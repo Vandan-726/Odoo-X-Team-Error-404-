@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { 
   useListAssets, 
@@ -28,7 +28,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-
+import { Asset, AssetInput } from "@workspace/api-client-react";
+import { AssetDetailSheet } from "./AssetDetailSheet";
 
 const assetSchema = z.object({
   assetTag: z.string().min(1, "Asset Tag is required"),
@@ -58,6 +59,17 @@ export default function Assets() {
   const [deptFilter, setDeptFilter] = useState<string>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [, setLocation] = useLocation();
+  const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const assetIdStr = params.get("assetId");
+    if (assetIdStr) {
+      setSelectedAssetId(Number(assetIdStr));
+      // Clean up URL without triggering a route change
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const [smartQuery, setSmartQuery] = useState("");
   const [smartSearchResults, setSmartSearchResults] = useState<Asset[] | null>(null);
@@ -452,7 +464,7 @@ export default function Assets() {
                 <TableRow 
                   key={asset.id} 
                   className="border-border/20 hover:bg-white/5 cursor-pointer transition-colors group"
-                  onClick={() => {/* In a real app we'd open a detail view */}}
+                  onClick={() => setSelectedAssetId(asset.id)}
                 >
                   <TableCell className="pl-4">
                     <div className="flex items-center gap-2">
@@ -492,6 +504,7 @@ export default function Assets() {
           </TableBody>
         </Table>
       </div>
+      <AssetDetailSheet assetId={selectedAssetId} onClose={() => setSelectedAssetId(null)} />
     </div>
   );
 }

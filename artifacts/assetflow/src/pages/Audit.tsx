@@ -42,6 +42,7 @@ export default function Audit() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data: cycles, isLoading: isLoadingCycles } = useListAuditCycles();
+  const { data: departments } = useListDepartments();
   const { data: activeCycle, isLoading: isLoadingCycle } = useGetAuditCycle(selectedCycleId || 0, {
     query: { enabled: !!selectedCycleId } as any
   });

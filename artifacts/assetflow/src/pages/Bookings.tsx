@@ -307,7 +307,7 @@ export default function Bookings() {
                             <div className={`font-bold text-[10px] truncate leading-tight ${isOngoing ? 'text-accent' : 'text-black'}`}>
                               {b.bookedByName?.split(' ')[0]}
                             </div>
-                            {style.width && parseFloat(style.width) > 5 && (
+                            {style.width && parseFloat(style.width as string) > 5 && (
                               <div className={`font-mono text-[9px] truncate leading-tight opacity-80 ${isOngoing ? 'text-accent/80' : 'text-black/80'}`}>
                                 {b.purpose || 'Reserved'}
                               </div>

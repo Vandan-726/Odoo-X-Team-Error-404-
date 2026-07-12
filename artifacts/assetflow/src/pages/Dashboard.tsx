@@ -1,9 +1,11 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useGetDashboardStats, useListOverdueAllocations, useGetMe } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { Scanner } from "@yudiel/react-qr-scanner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   PackageSearch, 
   ArrowRightLeft, 
@@ -11,11 +13,14 @@ import {
   Wrench,
   AlertTriangle,
   Clock,
-  ArrowUpRight
+  ArrowUpRight,
+  QrCode
 } from "lucide-react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 
 export default function Dashboard() {
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [, setLocation] = useLocation();
   const { data: me } = useGetMe();
   const isDeptHead = me?.role === "department_head";
   const isManager = me?.role === "admin" || me?.role === "asset_manager";
@@ -106,6 +111,13 @@ export default function Dashboard() {
             Register Asset
           </Link>
         </Button>
+        <Button 
+          className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs"
+          onClick={() => setIsScannerOpen(true)}
+        >
+          <QrCode className="mr-2 h-4 w-4 text-primary" />
+          Scan Asset
+        </Button>
         <Button className="rounded-full bg-card hover:bg-card/80 text-foreground border border-border h-12 px-6 font-mono uppercase tracking-wider text-xs" asChild>
           <Link href="/allocations">
             <ArrowRightLeft className="mr-2 h-4 w-4 text-primary" />
@@ -170,6 +182,38 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent className="sm:max-w-md bg-black/95 border border-white/10">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-xl uppercase tracking-widest text-primary flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              Scan Asset QR Code
+            </DialogTitle>
+          </DialogHeader>
+          <div className="w-full aspect-square mt-4 rounded-lg overflow-hidden bg-black flex items-center justify-center border border-white/5 relative">
+            <Scanner 
+              onScan={(result) => {
+                try {
+                  const data = JSON.parse(result[0].rawValue);
+                  if (data.assetId) {
+                    setIsScannerOpen(false);
+                    setLocation(`/assets?assetId=${data.assetId}`);
+                  }
+                } catch (e) {
+                  // Fallback if the QR code is just a URL or ID string
+                  const val = result[0].rawValue;
+                  if (!isNaN(Number(val))) {
+                    setIsScannerOpen(false);
+                    setLocation(`/assets?assetId=${val}`);
+                  }
+                }
+              }}
+              components={{}}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

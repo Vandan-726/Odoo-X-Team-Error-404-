@@ -88,7 +88,7 @@ router.post("/maintenance-requests/diagnose", requireAuth, async (req, res): Pro
           content: issueDescription
         }
       ],
-      model: "llama3-8b-8192",
+      model: "llama-3.3-70b-versatile",
       response_format: { type: "json_object" }
     });
     

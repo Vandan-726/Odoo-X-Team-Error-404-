@@ -484,6 +484,18 @@ export const UpdateAssetResponse = zod.object({
 
 
 /**
+ * @summary Get asset QR code
+ */
+export const GetAssetQRCodeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetAssetQRCodeResponse = zod.object({
+  "qrCode": zod.string().optional()
+})
+
+
+/**
  * @summary List all allocations
  */
 export const ListAllocationsQueryParams = zod.object({

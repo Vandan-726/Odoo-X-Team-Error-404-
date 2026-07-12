@@ -587,6 +587,10 @@ category?: number;
 department?: number;
 };
 
+export type GetAssetQRCode200 = {
+  qrCode?: string;
+};
+
 export type ListAllocationsParams = {
 assetId?: number;
 employeeId?: number;

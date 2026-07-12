@@ -433,6 +433,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/Asset"
 
+  /assets/{id}/qrcode:
+    get:
+      operationId: getAssetQRCode
+      tags: [assets]
+      summary: Get asset QR code
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Base64 encoded QR Code
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  qrCode:
+                    type: string
+
   /allocations:
     get:
       operationId: listAllocations
