@@ -352,6 +352,35 @@ export const CreateAssetResponse = zod.object({
 
 
 /**
+ * @summary Natural Language search for assets using AI
+ */
+export const SmartSearchAssetsBody = zod.object({
+  "query": zod.string()
+})
+
+export const SmartSearchAssetsResponseItem = zod.object({
+  "id": zod.number(),
+  "assetTag": zod.string(),
+  "name": zod.string(),
+  "categoryId": zod.number().nullish(),
+  "categoryName": zod.string().nullish(),
+  "serialNumber": zod.string().nullish(),
+  "acquisitionDate": zod.string().nullish(),
+  "acquisitionCost": zod.number().nullish(),
+  "condition": zod.string().optional(),
+  "location": zod.string().nullish(),
+  "photoUrl": zod.string().nullish(),
+  "isBookable": zod.boolean().optional(),
+  "status": zod.string(),
+  "departmentId": zod.number().nullish(),
+  "departmentName": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+})
+export const SmartSearchAssetsResponse = zod.array(SmartSearchAssetsResponseItem)
+
+
+/**
  * @summary Get asset detail with allocation and maintenance history
  */
 export const GetAssetParams = zod.object({

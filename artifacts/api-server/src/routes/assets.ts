@@ -3,6 +3,9 @@ import { db, assetsTable, assetCategoriesTable, departmentsTable, assetAllocatio
 import { eq, and, or, ilike, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth";
 import { logActivity } from "../lib/activityLogger";
+import Groq from "groq-sdk";
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const router = Router();
 
@@ -175,6 +178,108 @@ router.patch("/assets/:id", requireAuth, async (req, res): Promise<void> => {
   }
   await logActivity({ userId: req.session.user!.id, action: "update", entityType: "asset", entityId: id });
   res.json(formatAsset(updated, null, null));
+});
+
+router.post("/assets/smart-search", requireAuth, async (req, res): Promise<void> => {
+  const user = req.session.user!;
+  const { query } = req.body;
+
+  if (!query || typeof query !== "string") {
+    res.status(400).json({ error: "query is required and must be a string" });
+    return;
+  }
+
+  try {
+    const [cats, depts] = await Promise.all([
+      db.select().from(assetCategoriesTable),
+      db.select().from(departmentsTable),
+    ]);
+
+    const categoriesList = cats.map(c => ({ id: c.id, name: c.name }));
+    const departmentsList = depts.map(d => ({ id: d.id, name: d.name }));
+
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: `You are an AI assistant built for an enterprise asset registry. Your task is to analyze a natural language search query and map it into structured query parameters.
+You are given lists of valid categories and departments in the registry, as well as the list of allowed statuses and conditions.
+
+Valid Categories:
+\${JSON.stringify(categoriesList)}
+
+Valid Departments:
+\${JSON.stringify(departmentsList)}
+
+Allowed Statuses:
+- "available"
+- "allocated"
+- "under_maintenance"
+- "lost"
+
+Allowed Conditions:
+- "new"
+- "good"
+- "fair"
+- "poor"
+
+Analyze the user's search query and output a JSON object containing the extracted query parameters. Only map to category/department IDs if the user explicitly references or implies them. You can also extract a general search term (excluding the words that map to category/department/status).
+Output JSON format:
+{
+  "categoryId": number | null,
+  "departmentId": number | null,
+  "status": "available" | "allocated" | "under_maintenance" | "lost" | null,
+  "condition": "new" | "good" | "fair" | "poor" | null,
+  "isBookable": boolean | null,
+  "search": string | null
+}
+ONLY return the raw JSON object, without any markdown formatting or extra text.`
+        },
+        {
+          role: "user",
+          content: query
+        }
+      ],
+      model: "llama3-8b-8192",
+      response_format: { type: "json_object" }
+    });
+
+    const responseContent = chatCompletion.choices[0]?.message?.content;
+    if (!responseContent) throw new Error("No response from Groq");
+    const parsed = JSON.parse(responseContent);
+
+    let departmentId = parsed.departmentId;
+    if (user.role === "department_head" && user.departmentId) {
+      departmentId = user.departmentId;
+    }
+
+    const conditions = [];
+    if (departmentId) conditions.push(eq(assetsTable.departmentId, departmentId));
+    if (parsed.categoryId) conditions.push(eq(assetsTable.categoryId, parsed.categoryId));
+    if (parsed.status) conditions.push(eq(assetsTable.status, parsed.status));
+    if (parsed.condition) conditions.push(eq(assetsTable.condition, parsed.condition));
+    if (parsed.isBookable !== undefined && parsed.isBookable !== null) {
+      conditions.push(eq(assetsTable.isBookable, parsed.isBookable));
+    }
+    if (parsed.search) {
+      conditions.push(or(
+        ilike(assetsTable.name, `%\${parsed.search}%`),
+        ilike(assetsTable.assetTag, `%\${parsed.search}%`)
+      ));
+    }
+
+    const assets = conditions.length
+      ? await db.select().from(assetsTable).where(and(...conditions)).orderBy(assetsTable.name)
+      : await db.select().from(assetsTable).orderBy(assetsTable.name);
+
+    const catMap = new Map(cats.map(c => [c.id, c.name]));
+    const deptMap = new Map(depts.map(d => [d.id, d.name]));
+
+    res.json(assets.map(a => formatAsset(a, a.categoryId ? catMap.get(a.categoryId) ?? null : null, a.departmentId ? deptMap.get(a.departmentId) ?? null : null)));
+  } catch (error) {
+    console.error("Smart search error:", error);
+    res.status(500).json({ error: "Failed to perform AI smart search" });
+  }
 });
 
 export default router;

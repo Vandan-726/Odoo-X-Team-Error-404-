@@ -65,6 +65,7 @@ import type {
   Notification,
   ReturnInput,
   SignupInput,
+  SmartSearchInput,
   SuccessResponse,
   TechnicianAssignment,
   TransferRequest,
@@ -1290,6 +1291,77 @@ export const useCreateAsset = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getCreateAssetMutationOptions(options));
+    }
+
+export const getSmartSearchAssetsUrl = () => {
+
+
+
+
+  return `/api/assets/smart-search`
+}
+
+/**
+ * @summary Natural Language search for assets using AI
+ */
+export const smartSearchAssets = async (smartSearchInput: SmartSearchInput, options?: RequestInit): Promise<Asset[]> => {
+
+  return customFetch<Asset[]>(getSmartSearchAssetsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(smartSearchInput)
+  }
+);}
+
+
+
+
+
+export const getSmartSearchAssetsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof smartSearchAssets>>, TError,{data: BodyType<SmartSearchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof smartSearchAssets>>, TError,{data: BodyType<SmartSearchInput>}, TContext> => {
+
+const mutationKey = ['smartSearchAssets'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof smartSearchAssets>>, {data: BodyType<SmartSearchInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  smartSearchAssets(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SmartSearchAssetsMutationResult = NonNullable<Awaited<ReturnType<typeof smartSearchAssets>>>
+    export type SmartSearchAssetsMutationBody = BodyType<SmartSearchInput>
+    export type SmartSearchAssetsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Natural Language search for assets using AI
+ */
+export const useSmartSearchAssets = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof smartSearchAssets>>, TError,{data: BodyType<SmartSearchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof smartSearchAssets>>,
+        TError,
+        {data: BodyType<SmartSearchInput>},
+        TContext
+      > => {
+      return useMutation(getSmartSearchAssetsMutationOptions(options));
     }
 
 export const getGetAssetUrl = (id: number,) => {

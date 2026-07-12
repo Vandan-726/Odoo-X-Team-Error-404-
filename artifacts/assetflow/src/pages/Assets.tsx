@@ -8,7 +8,8 @@ import {
   useGetMe,
   getListAssetsQueryKey,
   Asset,
-  AssetInput
+  AssetInput,
+  useSmartSearchAssets
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -16,7 +17,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { 
   Search, Filter, Plus, FileText, QrCode, Monitor, BoxSelect, Server, MapPin, Hash, CheckCircle2, AlertTriangle, XCircle, Wrench,
-  ArrowRightLeft
+  ArrowRightLeft, Sparkles
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,32 @@ export default function Assets() {
   const [deptFilter, setDeptFilter] = useState<string>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [, setLocation] = useLocation();
+
+  const [smartQuery, setSmartQuery] = useState("");
+  const [smartSearchResults, setSmartSearchResults] = useState<Asset[] | null>(null);
+
+  const smartSearchMutation = useSmartSearchAssets();
+
+  const handleSmartSearch = () => {
+    if (!smartQuery.trim()) return;
+    smartSearchMutation.mutate(
+      { data: { query: smartQuery } },
+      {
+        onSuccess: (data) => {
+          setSmartSearchResults(data);
+          toast.success("AI search completed");
+        },
+        onError: (err: any) => {
+          toast.error(err.message || "AI search failed");
+        },
+      }
+    );
+  };
+
+  const clearSmartSearch = () => {
+    setSmartQuery("");
+    setSmartSearchResults(null);
+  };
 
   const queryClient = useQueryClient();
   const { data: me } = useGetMe();
@@ -307,6 +334,54 @@ export default function Assets() {
         )}
       </div>
 
+      {/* SMART AI SEARCH BAR */}
+      <div className="bg-gradient-to-r from-primary/10 via-accent/5 to-transparent p-4 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden">
+        <div className="relative z-10 flex flex-col sm:flex-row gap-3 items-center">
+          <div className="flex items-center gap-2 text-primary font-mono text-xs uppercase tracking-wider min-w-[120px]">
+            <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+            <span>AI SMART SEARCH</span>
+          </div>
+          <div className="relative flex-1 w-full">
+            <Input
+              placeholder="Ask AI e.g. 'Show available laptops in IT department'..."
+              value={smartQuery}
+              onChange={(e) => setSmartQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSmartSearch();
+              }}
+              className="bg-black/40 border-primary/30 focus-visible:ring-primary/50 font-sans text-sm pr-20"
+            />
+            <Button
+              size="sm"
+              onClick={handleSmartSearch}
+              disabled={smartSearchMutation.isPending || !smartQuery.trim()}
+              className="absolute right-1 top-1/2 -translate-y-1/2 font-mono text-xs bg-white text-black hover:bg-white/90 h-7"
+            >
+              {smartSearchMutation.isPending ? "THINKING..." : "ASK"}
+            </Button>
+          </div>
+          {smartSearchResults !== null && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearSmartSearch}
+              className="font-mono text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
+            >
+              CLEAR RESULTS
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {smartSearchResults !== null && (
+        <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex justify-between items-center text-xs font-mono text-primary uppercase tracking-wider">
+          <span>Displaying AI-filtered list for query: "{smartQuery}"</span>
+          <Button variant="ghost" size="sm" onClick={clearSmartSearch} className="h-6 text-primary hover:text-primary hover:bg-primary/10">
+            Reset View
+          </Button>
+        </div>
+      )}
+
       {/* FILTER BAR */}
       <div className="flex flex-col lg:flex-row gap-3 bg-card p-2 rounded-xl border border-card-border shadow-md">
         <div className="relative flex-1">
@@ -368,12 +443,12 @@ export default function Assets() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+            {isLoading || smartSearchMutation.isPending ? (
               <TableRow><TableCell colSpan={6} className="text-center font-mono text-sm py-12 text-muted-foreground">LOADING REGISTRY DATA...</TableCell></TableRow>
-            ) : assets?.length === 0 ? (
+            ) : (smartSearchResults !== null ? smartSearchResults : assets)?.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="text-center font-mono text-sm py-12 text-muted-foreground">NO ASSETS MATCH CURRENT FILTERS</TableCell></TableRow>
             ) : (
-              assets?.map((asset) => (
+              (smartSearchResults !== null ? smartSearchResults : assets)?.map((asset) => (
                 <TableRow 
                   key={asset.id} 
                   className="border-border/20 hover:bg-white/5 cursor-pointer transition-colors group"

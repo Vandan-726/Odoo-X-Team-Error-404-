@@ -370,6 +370,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/Asset"
 
+  /assets/smart-search:
+    post:
+      operationId: smartSearchAssets
+      tags: [assets]
+      summary: Natural Language search for assets using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SmartSearchInput"
+      responses:
+        "200":
+          description: Filtered list of assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Asset"
+
   /assets/{id}:
     get:
       operationId: getAsset
@@ -1074,6 +1095,13 @@ components:
         email:
           type: string
         password:
+          type: string
+
+    SmartSearchInput:
+      type: object
+      required: [query]
+      properties:
+        query:
           type: string
 
     AuthUser:
