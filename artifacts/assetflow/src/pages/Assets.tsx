@@ -28,6 +28,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
+
 const assetSchema = z.object({
   assetTag: z.string().min(1, "Asset Tag is required"),
   name: z.string().min(1, "Name is required"),

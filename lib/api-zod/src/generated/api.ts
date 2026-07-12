@@ -788,6 +788,19 @@ export const CreateMaintenanceRequestResponse = zod.object({
 
 
 /**
+ * @summary Auto-diagnose a maintenance issue using AI
+ */
+export const DiagnoseMaintenanceRequestBody = zod.object({
+  "issueDescription": zod.string()
+})
+
+export const DiagnoseMaintenanceRequestResponse = zod.object({
+  "priority": zod.enum(['low', 'medium', 'high', 'critical']),
+  "suggestedSteps": zod.string()
+})
+
+
+/**
  * @summary Approve a maintenance request
  */
 export const ApproveMaintenanceRequestParams = zod.object({
