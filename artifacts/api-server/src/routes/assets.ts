@@ -1,4 +1,5 @@
 import { Router } from "express";
+import QRCode from "qrcode";
 import { db, assetsTable, assetCategoriesTable, departmentsTable, assetAllocationsTable, maintenanceRequestsTable, usersTable } from "@workspace/db";
 import { eq, and, or, ilike, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth";
@@ -175,6 +176,29 @@ router.patch("/assets/:id", requireAuth, async (req, res): Promise<void> => {
   }
   await logActivity({ userId: req.session.user!.id, action: "update", entityType: "asset", entityId: id });
   res.json(formatAsset(updated, null, null));
+});
+
+router.get("/assets/:id/qrcode", requireAuth, async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid ID" });
+    return;
+  }
+  
+  const [asset] = await db.select().from(assetsTable).where(eq(assetsTable.id, id));
+  if (!asset) {
+    res.status(404).json({ error: "Asset not found" });
+    return;
+  }
+
+  try {
+    const qrData = JSON.stringify({ assetId: asset.id });
+    const qrCode = await QRCode.toDataURL(qrData);
+    res.json({ qrCode });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to generate QR code" });
+  }
 });
 
 export default router;

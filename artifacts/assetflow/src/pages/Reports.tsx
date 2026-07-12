@@ -1,9 +1,9 @@
-import { useGetUtilizationReport, useGetMaintenanceFrequencyReport, useGetBookingHeatmap, useGetIdleAssetsReport } from "@workspace/api-client-react";
+import { useGetUtilizationReport, useGetMaintenanceFrequencyReport, useGetBookingHeatmap, useGetIdleAssetsReport, useGetMe } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, BarChart2, Activity, Hexagon, PieChart } from "lucide-react";
+import { Download, BarChart2, Activity, Hexagon, PieChart, ShieldAlert } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line

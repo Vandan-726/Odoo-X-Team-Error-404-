@@ -41,6 +41,7 @@ export * from './diagnosticInput';
 export * from './diagnosticResponse';
 export * from './diagnosticResponsePriority';
 export * from './errorResponse';
+export * from './getAssetQRCode200';
 export * from './healthStatus';
 export * from './listActivityLogsParams';
 export * from './listAllocationsParams';

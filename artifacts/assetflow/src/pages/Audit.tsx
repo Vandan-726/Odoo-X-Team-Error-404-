@@ -42,7 +42,7 @@ export default function Audit() {
   const { data: cycles, isLoading: isLoadingCycles } = useListAuditCycles();
   const { data: departments } = useListDepartments();
   const { data: activeCycle, isLoading: isLoadingCycle } = useGetAuditCycle(selectedCycleId!, {
-    query: { enabled: !!selectedCycleId }
+    query: { enabled: !!selectedCycleId } as any
   });
 
   const createCycle = useCreateAuditCycle();
@@ -72,7 +72,7 @@ export default function Audit() {
 
   const handleVerify = (itemId: number, status: string) => {
     verifyItem.mutate(
-      { id: itemId, data: { verificationStatus: status } },
+      { id: selectedCycleId!, itemId, data: { verificationStatus: status as any } },
       {
         onSuccess: () => {
           // Patch cache locally to avoid full refetch jumping

@@ -49,6 +49,7 @@ import type {
   DiagnosticInput,
   DiagnosticResponse,
   ErrorResponse,
+  GetAssetQRCode200,
   HealthStatus,
   ListActivityLogsParams,
   ListAllocationsParams,
@@ -1440,6 +1441,83 @@ export const useUpdateAsset = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUpdateAssetMutationOptions(options));
     }
+
+export const getGetAssetQRCodeUrl = (id: number,) => {
+
+
+
+
+  return `/api/assets/${id}/qrcode`
+}
+
+/**
+ * @summary Get asset QR code
+ */
+export const getAssetQRCode = async (id: number, options?: RequestInit): Promise<GetAssetQRCode200> => {
+
+  return customFetch<GetAssetQRCode200>(getGetAssetQRCodeUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssetQRCodeQueryKey = (id: number,) => {
+    return [
+    `/api/assets/${id}/qrcode`
+    ] as const;
+    }
+
+
+export const getGetAssetQRCodeQueryOptions = <TData = Awaited<ReturnType<typeof getAssetQRCode>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssetQRCode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssetQRCodeQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssetQRCode>>> = ({ signal }) => getAssetQRCode(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssetQRCode>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAssetQRCodeQueryResult = NonNullable<Awaited<ReturnType<typeof getAssetQRCode>>>
+export type GetAssetQRCodeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get asset QR code
+ */
+
+export function useGetAssetQRCode<TData = Awaited<ReturnType<typeof getAssetQRCode>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssetQRCode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAssetQRCodeQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListAllocationsUrl = (params?: ListAllocationsParams,) => {
   const normalizedParams = new URLSearchParams();
