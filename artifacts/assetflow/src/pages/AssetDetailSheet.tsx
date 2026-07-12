@@ -30,7 +30,7 @@ export function AssetDetailSheet({ assetId, onClose }: AssetDetailSheetProps) {
 
   return (
     <Sheet open={!!assetId} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="sm:max-w-md overflow-y-auto bg-black/95 border-l border-white/10">
+      <SheetContent className="sm:max-w-md overflow-y-auto backdrop-blur-md bg-background/80 border-l border-border">
         {isLoading || !assetDetail ? (
           <div className="flex h-full items-center justify-center font-mono text-sm text-muted-foreground">LOADING ASSET DATA...</div>
         ) : (
@@ -46,8 +46,8 @@ export function AssetDetailSheet({ assetId, onClose }: AssetDetailSheetProps) {
             
             <div className="space-y-8">
               {qrData?.qrCode && (
-                <div className="flex flex-col items-center justify-center p-4 bg-white/5 border border-white/10 rounded-lg">
-                  <img src={qrData.qrCode} alt="Asset QR Code" className="w-48 h-48 rounded-md mix-blend-screen" />
+                <div className="flex flex-col items-center justify-center p-4 bg-muted/50 border border-border rounded-lg">
+                  <img src={qrData.qrCode} alt="Asset QR Code" className="w-48 h-48 rounded-md" />
                   <span className="mt-4 font-mono text-xs text-muted-foreground tracking-widest">SCAN FOR QUICK ACCESS</span>
                 </div>
               )}
