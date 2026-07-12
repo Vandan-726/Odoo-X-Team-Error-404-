@@ -54,8 +54,8 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const handleLogout = () => {
     logout.mutate(undefined, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      onSettled: () => {
+        queryClient.setQueryData(getGetMeQueryKey(), null);
         setLocation("/auth");
       }
     });
@@ -66,7 +66,7 @@ export function Shell({ children }: { children: ReactNode }) {
       {navItems.filter(item => {
         if (!user) return false;
         if (item.href === "/org") return user.role === "admin";
-        if (item.href === "/reports") return user.role !== "employee";
+        if (item.href === "/reports" || item.href === "/audit") return user.role !== "employee";
         return true;
       }).map((item) => {
         const isActive = location === item.href || location.startsWith(item.href + "/");

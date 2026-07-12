@@ -20,7 +20,7 @@ export default function Notifications() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("all");
   
-  const { data: notifications, isLoading: isLoadingNotifs } = useListNotifications({ filter: filter !== "all" ? filter : undefined }, { query: { refetchInterval: 15000 } });
+  const { data: notifications, isLoading: isLoadingNotifs } = useListNotifications({ filter: filter !== "all" ? filter : undefined }, { query: { refetchInterval: 15000 } as any });
   const { data: activityLogs, isLoading: isLoadingLogs } = useListActivityLogs({ limit: 50 });
 
   const markRead = useMarkNotificationRead();

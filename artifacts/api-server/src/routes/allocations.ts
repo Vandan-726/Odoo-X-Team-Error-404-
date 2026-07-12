@@ -34,7 +34,11 @@ router.get("/allocations", requireAuth, async (req, res): Promise<void> => {
   const { assetId, employeeId, status } = req.query;
   const conditions = [];
   if (assetId) conditions.push(eq(assetAllocationsTable.assetId, Number(assetId)));
-  if (employeeId) conditions.push(eq(assetAllocationsTable.employeeId, Number(employeeId)));
+  if (sessionUser.role === "employee") {
+    conditions.push(eq(assetAllocationsTable.employeeId, sessionUser.id));
+  } else if (employeeId) {
+    conditions.push(eq(assetAllocationsTable.employeeId, Number(employeeId)));
+  }
   if (status && typeof status === "string") conditions.push(eq(assetAllocationsTable.status, status));
   // Department heads only see allocations for assets in their own department
   if (sessionUser.role === "department_head" && sessionUser.departmentId) {
@@ -70,10 +74,22 @@ router.get("/allocations", requireAuth, async (req, res): Promise<void> => {
   }));
 });
 
-router.get("/allocations/overdue", requireAuth, async (_req, res): Promise<void> => {
+router.get("/allocations/overdue", requireAuth, async (req, res): Promise<void> => {
+  const sessionUser = req.session.user!;
   const now = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  const conditions = [
+    eq(assetAllocationsTable.status, "active"),
+    sql`${assetAllocationsTable.expectedReturnDate} < ${now}`
+  ];
+
+  if (sessionUser.role === "employee") {
+    conditions.push(eq(assetAllocationsTable.employeeId, sessionUser.id));
+  } else if (sessionUser.role === "department_head" && sessionUser.departmentId) {
+    conditions.push(sql`${assetAllocationsTable.assetId} IN (SELECT id FROM assets WHERE department_id = ${sessionUser.departmentId})`);
+  }
+
   const allocs = await db.select().from(assetAllocationsTable)
-    .where(and(eq(assetAllocationsTable.status, "active"), sql`${assetAllocationsTable.expectedReturnDate} < ${now}`))
+    .where(and(...conditions))
     .orderBy(sql`${assetAllocationsTable.expectedReturnDate} ASC`);
 
   const assets = await db.select().from(assetsTable);

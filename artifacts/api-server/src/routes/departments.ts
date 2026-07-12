@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, departmentsTable, usersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { requireAuth } from "../lib/auth";
+import { requireAuth, requireRole } from "../lib/auth";
 import { logActivity } from "../lib/activityLogger";
 
 const router = Router();
@@ -42,7 +42,7 @@ router.get("/departments", requireAuth, async (req, res): Promise<void> => {
   res.json(results.filter(Boolean));
 });
 
-router.post("/departments", requireAuth, async (req, res): Promise<void> => {
+router.post("/departments", requireAuth, requireRole("admin"), async (req, res): Promise<void> => {
   const { name, headUserId, parentDepartmentId, status } = req.body;
   if (!name) {
     res.status(400).json({ error: "name is required" });
@@ -59,7 +59,7 @@ router.post("/departments", requireAuth, async (req, res): Promise<void> => {
   res.status(201).json(result);
 });
 
-router.patch("/departments/:id", requireAuth, async (req, res): Promise<void> => {
+router.patch("/departments/:id", requireAuth, requireRole("admin"), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { name, headUserId, parentDepartmentId, status } = req.body;

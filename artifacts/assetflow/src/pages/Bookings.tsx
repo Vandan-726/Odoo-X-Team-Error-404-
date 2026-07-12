@@ -111,7 +111,7 @@ export default function Bookings() {
     const end = parseISO(endStr);
     
     // Only show blocks for the current day view
-    if (!isSameDay(start, currentDate) && !isSameDay(end, currentDate)) return { display: 'none' };
+    if (!isSameDay(start, currentDate) && !isSameDay(end, currentDate)) return { display: 'none', left: undefined, width: undefined };
     
     // Default to start/end of view day if span crosses midnight
     const viewStart = new Date(currentDate); viewStart.setHours(6, 0, 0, 0);
@@ -126,7 +126,7 @@ export default function Bookings() {
     const left = `${(startMinutes / (15 * 60)) * 100}%`;
     const width = `${(durationMinutes / (15 * 60)) * 100}%`;
 
-    return { left, width };
+    return { left, width, display: undefined };
   };
 
   return (
@@ -307,7 +307,7 @@ export default function Bookings() {
                             <div className={`font-bold text-[10px] truncate leading-tight ${isOngoing ? 'text-accent' : 'text-black'}`}>
                               {b.bookedByName?.split(' ')[0]}
                             </div>
-                            {parseFloat(style.width) > 5 && (
+                            {style.width && parseFloat(style.width) > 5 && (
                               <div className={`font-mono text-[9px] truncate leading-tight opacity-80 ${isOngoing ? 'text-accent/80' : 'text-black/80'}`}>
                                 {b.purpose || 'Reserved'}
                               </div>

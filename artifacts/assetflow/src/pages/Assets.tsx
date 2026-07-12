@@ -6,7 +6,9 @@ import {
   useListDepartments,
   useCreateAsset,
   useGetMe,
-  getListAssetsQueryKey
+  getListAssetsQueryKey,
+  Asset,
+  AssetInput
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -25,7 +27,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Asset, AssetInput } from "@workspace/api-client-react/src/generated/api.schemas";
 
 const assetSchema = z.object({
   assetTag: z.string().min(1, "Asset Tag is required"),

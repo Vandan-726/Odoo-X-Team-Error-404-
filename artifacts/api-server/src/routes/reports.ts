@@ -8,7 +8,9 @@ const router = Router();
 router.get("/reports/dashboard", requireAuth, async (req, res): Promise<void> => {
   const user = req.session.user!;
   const isDeptHead = user.role === "department_head" && !!user.departmentId;
+  const isEmployee = user.role === "employee";
   const deptId = user.departmentId as number;
+  const employeeId = user.id;
 
   let totalResult: { count: number }[];
   let availableResult: { count: number }[];
@@ -58,8 +60,31 @@ router.get("/reports/dashboard", requireAuth, async (req, res): Promise<void> =>
         .where(sql`${activityLogsTable.userId} IN (SELECT id FROM users WHERE department_id = ${deptId})`)
         .orderBy(sql`${activityLogsTable.createdAt} DESC`).limit(10),
     ]);
+  } else if (isEmployee) {
+    // Employee-scoped dashboard: showing their own custody, bookings, and transfers
+    [
+      totalResult,
+      availableResult,
+      allocatedResult,
+      maintResult,
+      bookingsResult,
+      pendingTransfersResult,
+      overdueResult,
+      upcomingResult,
+      recentActivity,
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(assetsTable).where(eq(assetsTable.isBookable, true)), // bookable resources they can see
+      db.select({ count: sql<number>`count(*)::int` }).from(assetsTable).where(and(eq(assetsTable.isBookable, true), eq(assetsTable.status, "available"))),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetAllocationsTable).where(and(eq(assetAllocationsTable.employeeId, employeeId), eq(assetAllocationsTable.status, "active"))),
+      db.select({ count: sql<number>`count(*)::int` }).from(maintenanceRequestsTable).where(and(sql`DATE(${maintenanceRequestsTable.createdAt}) = CURRENT_DATE`, eq(maintenanceRequestsTable.raisedBy, employeeId))),
+      db.select({ count: sql<number>`count(*)::int` }).from(resourceBookingsTable).where(and(sql`${resourceBookingsTable.status} IN ('upcoming', 'ongoing')`, eq(resourceBookingsTable.bookedBy, employeeId))),
+      db.select({ count: sql<number>`count(*)::int` }).from(transferRequestsTable).where(and(eq(transferRequestsTable.status, "requested"), sql`(${transferRequestsTable.fromEmployeeId} = ${employeeId} OR ${transferRequestsTable.toEmployeeId} = ${employeeId})`)),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetAllocationsTable).where(and(eq(assetAllocationsTable.employeeId, employeeId), eq(assetAllocationsTable.status, "active"), sql`${assetAllocationsTable.expectedReturnDate} < CURRENT_DATE`)),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetAllocationsTable).where(and(eq(assetAllocationsTable.employeeId, employeeId), eq(assetAllocationsTable.status, "active"), sql`${assetAllocationsTable.expectedReturnDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'`)),
+      db.select().from(activityLogsTable).where(eq(activityLogsTable.userId, employeeId)).orderBy(sql`${activityLogsTable.createdAt} DESC`).limit(10),
+    ]);
   } else {
-    // Org-wide dashboard for admin / asset_manager / employee
+    // Org-wide dashboard for admin / asset_manager
     [
       totalResult,
       availableResult,
@@ -103,7 +128,15 @@ router.get("/reports/dashboard", requireAuth, async (req, res): Promise<void> =>
   });
 });
 
-router.get("/reports/utilization", requireAuth, async (_req, res): Promise<void> => {
+const requireManagerOrDeptHead = (req: any, res: any, next: any) => {
+  if (req.session.user!.role === "employee") {
+    res.status(403).json({ error: "Insufficient permissions to access reports" });
+    return;
+  }
+  next();
+};
+
+router.get("/reports/utilization", requireAuth, requireManagerOrDeptHead, async (_req, res): Promise<void> => {
   const result = await db.execute(sql`
     SELECT 
       COALESCE(ac.name, 'Uncategorized') as "categoryName",
@@ -121,7 +154,7 @@ router.get("/reports/utilization", requireAuth, async (_req, res): Promise<void>
   res.json(result.rows);
 });
 
-router.get("/reports/maintenance-frequency", requireAuth, async (_req, res): Promise<void> => {
+router.get("/reports/maintenance-frequency", requireAuth, requireManagerOrDeptHead, async (_req, res): Promise<void> => {
   const result = await db.execute(sql`
     SELECT 
       a.id as "assetId",
@@ -138,7 +171,7 @@ router.get("/reports/maintenance-frequency", requireAuth, async (_req, res): Pro
   res.json(result.rows);
 });
 
-router.get("/reports/idle-assets", requireAuth, async (_req, res): Promise<void> => {
+router.get("/reports/idle-assets", requireAuth, requireManagerOrDeptHead, async (_req, res): Promise<void> => {
   const assets = await db.select().from(assetsTable).where(eq(assetsTable.status, "available")).orderBy(assetsTable.name);
   res.json(assets.map(a => ({
     id: a.id, assetTag: a.assetTag, name: a.name,
@@ -151,7 +184,7 @@ router.get("/reports/idle-assets", requireAuth, async (_req, res): Promise<void>
   })));
 });
 
-router.get("/reports/booking-heatmap", requireAuth, async (_req, res): Promise<void> => {
+router.get("/reports/booking-heatmap", requireAuth, requireManagerOrDeptHead, async (_req, res): Promise<void> => {
   const result = await db.execute(sql`
     SELECT 
       EXTRACT(DOW FROM start_time)::int as "dayOfWeek",

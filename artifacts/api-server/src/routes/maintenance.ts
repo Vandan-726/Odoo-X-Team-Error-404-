@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, maintenanceRequestsTable, assetsTable, usersTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
-import { requireAuth } from "../lib/auth";
+import { requireAuth, requireRole } from "../lib/auth";
 import { logActivity } from "../lib/activityLogger";
 import { createNotification } from "../lib/notifications";
 
@@ -66,7 +66,7 @@ router.post("/maintenance-requests", requireAuth, async (req, res): Promise<void
   res.status(201).json(await getWithDetails(m.id));
 });
 
-router.patch("/maintenance-requests/:id/approve", requireAuth, async (req, res): Promise<void> => {
+router.patch("/maintenance-requests/:id/approve", requireAuth, requireRole("admin", "asset_manager"), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
 
@@ -86,7 +86,7 @@ router.patch("/maintenance-requests/:id/approve", requireAuth, async (req, res):
   res.json(await getWithDetails(id));
 });
 
-router.patch("/maintenance-requests/:id/reject", requireAuth, async (req, res): Promise<void> => {
+router.patch("/maintenance-requests/:id/reject", requireAuth, requireRole("admin", "asset_manager"), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
 
@@ -100,7 +100,7 @@ router.patch("/maintenance-requests/:id/reject", requireAuth, async (req, res): 
   res.json(await getWithDetails(id));
 });
 
-router.patch("/maintenance-requests/:id/assign-technician", requireAuth, async (req, res): Promise<void> => {
+router.patch("/maintenance-requests/:id/assign-technician", requireAuth, requireRole("admin", "asset_manager"), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { assignedTechnician } = req.body;
@@ -118,7 +118,7 @@ router.patch("/maintenance-requests/:id/assign-technician", requireAuth, async (
   res.json(await getWithDetails(id));
 });
 
-router.patch("/maintenance-requests/:id/resolve", requireAuth, async (req, res): Promise<void> => {
+router.patch("/maintenance-requests/:id/resolve", requireAuth, requireRole("admin", "asset_manager"), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
 

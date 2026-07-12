@@ -19,8 +19,8 @@ export default function Dashboard() {
   const { data: me } = useGetMe();
   const isDeptHead = me?.role === "department_head";
   const isManager = me?.role === "admin" || me?.role === "asset_manager";
-  const { data: stats, isLoading: isStatsLoading } = useGetDashboardStats({ query: { refetchInterval: 30000 } });
-  const { data: overdue, isLoading: isOverdueLoading } = useListOverdueAllocations({ query: { refetchInterval: 30000 } });
+  const { data: stats, isLoading: isStatsLoading } = useGetDashboardStats({ query: { refetchInterval: 30000 } as any });
+  const { data: overdue, isLoading: isOverdueLoading } = useListOverdueAllocations({ query: { refetchInterval: 30000 } as any });
 
   const kpiLabel = (base: string) => isDeptHead ? `DEPT ${base}` : base;
   const kpis = [
