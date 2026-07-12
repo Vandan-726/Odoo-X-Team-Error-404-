@@ -27,9 +27,17 @@ async function formatTransfer(t: typeof transferRequestsTable.$inferSelect) {
 }
 
 router.get("/transfer-requests", requireAuth, async (req, res): Promise<void> => {
+  const sessionUser = req.session.user!;
   const { status } = req.query;
-  const transfers = status && typeof status === "string"
-    ? await db.select().from(transferRequestsTable).where(eq(transferRequestsTable.status, status)).orderBy(sql`${transferRequestsTable.requestedAt} DESC`)
+  const conditions = [];
+  if (status && typeof status === "string") conditions.push(eq(transferRequestsTable.status, status));
+  // Department heads only see transfers for assets in their own department
+  if (sessionUser.role === "department_head" && sessionUser.departmentId) {
+    conditions.push(sql`${transferRequestsTable.assetId} IN (SELECT id FROM assets WHERE department_id = ${sessionUser.departmentId})`);
+  }
+
+  const transfers = conditions.length
+    ? await db.select().from(transferRequestsTable).where(and(...conditions)).orderBy(sql`${transferRequestsTable.requestedAt} DESC`)
     : await db.select().from(transferRequestsTable).orderBy(sql`${transferRequestsTable.requestedAt} DESC`);
 
   const assets = await db.select().from(assetsTable);
@@ -73,10 +81,17 @@ router.post("/transfer-requests", requireAuth, async (req, res): Promise<void> =
   }).returning();
 
   await logActivity({ userId: req.session.user!.id, action: "request_transfer", entityType: "asset", entityId: assetId, metadata: { transferId: tr.id, toEmployeeId } });
-  // Notify asset managers
+
+  // Notify asset managers and relevant department head
   const [asset] = await db.select().from(assetsTable).where(eq(assetsTable.id, assetId));
-  const managers = await db.select().from(usersTable).where(eq(usersTable.role, "asset_manager"));
-  await Promise.all(managers.map(m => createNotification({ userId: m.id, type: "transfer_request", message: `Transfer request for asset ${asset?.assetTag ?? assetId} needs approval`, referenceType: "transfer", referenceId: tr.id })));
+  const notifyRecipients = await db.select().from(usersTable).where(
+    sql`${usersTable.role} IN ('asset_manager', 'admin') OR (${usersTable.role} = 'department_head' AND ${usersTable.departmentId} = ${asset?.departmentId ?? 0})`
+  );
+  await Promise.all(notifyRecipients.map(m => createNotification({
+    userId: m.id, type: "transfer_request",
+    message: `Transfer request for asset ${asset?.assetTag ?? assetId} needs approval`,
+    referenceType: "transfer", referenceId: tr.id,
+  })));
 
   res.status(201).json(await formatTransfer(tr));
 });
@@ -86,25 +101,37 @@ router.patch("/transfer-requests/:id/approve", requireAuth, async (req, res): Pr
   const id = parseInt(raw, 10);
   const user = req.session.user!;
 
+  // Only admin, asset_manager, and dept_head (scoped) may approve
+  if (!["admin", "asset_manager", "department_head"].includes(user.role)) {
+    res.status(403).json({ error: "Insufficient permissions to approve transfers" });
+    return;
+  }
+
   const [tr] = await db.select().from(transferRequestsTable).where(eq(transferRequestsTable.id, id));
   if (!tr || tr.status !== "requested") {
     res.status(404).json({ error: "Transfer request not found or not pending" });
     return;
   }
 
+  // Department head: asset must belong to their department
+  if (user.role === "department_head") {
+    const [asset] = await db.select().from(assetsTable).where(eq(assetsTable.id, tr.assetId));
+    if (asset?.departmentId !== user.departmentId) {
+      res.status(403).json({ error: "You can only approve transfers for assets within your own department" });
+      return;
+    }
+  }
+
   // Transaction: close current allocation, open new one, update transfer status
   await db.transaction(async (tx) => {
-    // Close old allocation
     await tx.update(assetAllocationsTable).set({ status: "returned", returnedAt: new Date() })
       .where(and(eq(assetAllocationsTable.assetId, tr.assetId), eq(assetAllocationsTable.status, "active")));
-    // Open new allocation
     await tx.insert(assetAllocationsTable).values({
       assetId: tr.assetId,
       employeeId: tr.toEmployeeId,
       createdBy: user.id,
       status: "active",
     });
-    // Update transfer status
     await tx.update(transferRequestsTable).set({
       status: "approved",
       approvedBy: user.id,
@@ -122,10 +149,31 @@ router.patch("/transfer-requests/:id/approve", requireAuth, async (req, res): Pr
 router.patch("/transfer-requests/:id/reject", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
+  const user = req.session.user!;
+
+  // Only admin, asset_manager, and dept_head (scoped) may reject
+  if (!["admin", "asset_manager", "department_head"].includes(user.role)) {
+    res.status(403).json({ error: "Insufficient permissions to reject transfers" });
+    return;
+  }
+
+  // Department head: verify asset belongs to their department before rejecting
+  if (user.role === "department_head") {
+    const [tr] = await db.select().from(transferRequestsTable).where(eq(transferRequestsTable.id, id));
+    if (!tr) {
+      res.status(404).json({ error: "Transfer request not found" });
+      return;
+    }
+    const [asset] = await db.select().from(assetsTable).where(eq(assetsTable.id, tr.assetId));
+    if (asset?.departmentId !== user.departmentId) {
+      res.status(403).json({ error: "You can only reject transfers for assets within your own department" });
+      return;
+    }
+  }
 
   const [updated] = await db.update(transferRequestsTable).set({
     status: "rejected",
-    approvedBy: req.session.user!.id,
+    approvedBy: user.id,
     resolvedAt: new Date(),
   }).where(and(eq(transferRequestsTable.id, id), eq(transferRequestsTable.status, "requested"))).returning();
 
@@ -133,7 +181,7 @@ router.patch("/transfer-requests/:id/reject", requireAuth, async (req, res): Pro
     res.status(404).json({ error: "Transfer request not found or not pending" });
     return;
   }
-  await logActivity({ userId: req.session.user!.id, action: "reject_transfer", entityType: "asset", entityId: updated.assetId, metadata: { transferId: id } });
+  await logActivity({ userId: user.id, action: "reject_transfer", entityType: "asset", entityId: updated.assetId, metadata: { transferId: id } });
 
   res.json(await formatTransfer(updated));
 });

@@ -77,9 +77,15 @@ router.post("/bookings", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  const sessionUser = req.session.user!;
+  // Department heads always book on behalf of their own department — ignore client-provided departmentId
+  const effectiveDeptId = (sessionUser.role === "department_head" && sessionUser.departmentId)
+    ? sessionUser.departmentId
+    : (departmentId ?? null);
+
   const [booking] = await db.insert(resourceBookingsTable).values({
-    assetId, bookedBy: req.session.user!.id,
-    departmentId: departmentId ?? null,
+    assetId, bookedBy: sessionUser.id,
+    departmentId: effectiveDeptId,
     purpose: purpose ?? null,
     startTime: start,
     endTime: end,

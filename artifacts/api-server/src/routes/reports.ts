@@ -6,27 +6,82 @@ import { requireAuth } from "../lib/auth";
 const router = Router();
 
 router.get("/reports/dashboard", requireAuth, async (req, res): Promise<void> => {
-  const [
-    totalResult,
-    availableResult,
-    allocatedResult,
-    maintResult,
-    bookingsResult,
-    pendingTransfersResult,
-    overdueResult,
-    upcomingResult,
-    recentActivity,
-  ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)::int` }).from(assetsTable),
-    db.select({ count: sql<number>`count(*)::int` }).from(assetsTable).where(eq(assetsTable.status, "available")),
-    db.select({ count: sql<number>`count(*)::int` }).from(assetsTable).where(eq(assetsTable.status, "allocated")),
-    db.select({ count: sql<number>`count(*)::int` }).from(maintenanceRequestsTable).where(sql`DATE(${maintenanceRequestsTable.createdAt}) = CURRENT_DATE`),
-    db.select({ count: sql<number>`count(*)::int` }).from(resourceBookingsTable).where(sql`${resourceBookingsTable.status} IN ('upcoming', 'ongoing')`),
-    db.select({ count: sql<number>`count(*)::int` }).from(transferRequestsTable).where(eq(transferRequestsTable.status, "requested")),
-    db.select({ count: sql<number>`count(*)::int` }).from(assetAllocationsTable).where(and(eq(assetAllocationsTable.status, "active"), sql`${assetAllocationsTable.expectedReturnDate} < CURRENT_DATE`)),
-    db.select({ count: sql<number>`count(*)::int` }).from(assetAllocationsTable).where(and(eq(assetAllocationsTable.status, "active"), sql`${assetAllocationsTable.expectedReturnDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'`)),
-    db.select().from(activityLogsTable).orderBy(sql`${activityLogsTable.createdAt} DESC`).limit(10),
-  ]);
+  const user = req.session.user!;
+  const isDeptHead = user.role === "department_head" && !!user.departmentId;
+  const deptId = user.departmentId as number;
+
+  let totalResult: { count: number }[];
+  let availableResult: { count: number }[];
+  let allocatedResult: { count: number }[];
+  let maintResult: { count: number }[];
+  let bookingsResult: { count: number }[];
+  let pendingTransfersResult: { count: number }[];
+  let overdueResult: { count: number }[];
+  let upcomingResult: { count: number }[];
+  let recentActivity: typeof activityLogsTable.$inferSelect[];
+
+  if (isDeptHead) {
+    // Department-scoped dashboard: all metrics filtered to the dept_head's department
+    [
+      totalResult,
+      availableResult,
+      allocatedResult,
+      maintResult,
+      bookingsResult,
+      pendingTransfersResult,
+      overdueResult,
+      upcomingResult,
+      recentActivity,
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(assetsTable)
+        .where(eq(assetsTable.departmentId, deptId)),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetsTable)
+        .where(and(eq(assetsTable.departmentId, deptId), eq(assetsTable.status, "available"))),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetsTable)
+        .where(and(eq(assetsTable.departmentId, deptId), eq(assetsTable.status, "allocated"))),
+      db.select({ count: sql<number>`count(*)::int` }).from(maintenanceRequestsTable)
+        .innerJoin(assetsTable, eq(maintenanceRequestsTable.assetId, assetsTable.id))
+        .where(and(sql`DATE(${maintenanceRequestsTable.createdAt}) = CURRENT_DATE`, eq(assetsTable.departmentId, deptId))),
+      db.select({ count: sql<number>`count(*)::int` }).from(resourceBookingsTable)
+        .where(and(sql`${resourceBookingsTable.status} IN ('upcoming', 'ongoing')`, eq(resourceBookingsTable.departmentId, deptId))),
+      db.select({ count: sql<number>`count(*)::int` }).from(transferRequestsTable)
+        .innerJoin(assetsTable, eq(transferRequestsTable.assetId, assetsTable.id))
+        .where(and(eq(transferRequestsTable.status, "requested"), eq(assetsTable.departmentId, deptId))),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetAllocationsTable)
+        .innerJoin(assetsTable, eq(assetAllocationsTable.assetId, assetsTable.id))
+        .where(and(eq(assetAllocationsTable.status, "active"), sql`${assetAllocationsTable.expectedReturnDate} < CURRENT_DATE`, eq(assetsTable.departmentId, deptId))),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetAllocationsTable)
+        .innerJoin(assetsTable, eq(assetAllocationsTable.assetId, assetsTable.id))
+        .where(and(eq(assetAllocationsTable.status, "active"), sql`${assetAllocationsTable.expectedReturnDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'`, eq(assetsTable.departmentId, deptId))),
+      // Activity feed: show actions taken by users in the same department
+      db.select().from(activityLogsTable)
+        .where(sql`${activityLogsTable.userId} IN (SELECT id FROM users WHERE department_id = ${deptId})`)
+        .orderBy(sql`${activityLogsTable.createdAt} DESC`).limit(10),
+    ]);
+  } else {
+    // Org-wide dashboard for admin / asset_manager / employee
+    [
+      totalResult,
+      availableResult,
+      allocatedResult,
+      maintResult,
+      bookingsResult,
+      pendingTransfersResult,
+      overdueResult,
+      upcomingResult,
+      recentActivity,
+    ] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(assetsTable),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetsTable).where(eq(assetsTable.status, "available")),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetsTable).where(eq(assetsTable.status, "allocated")),
+      db.select({ count: sql<number>`count(*)::int` }).from(maintenanceRequestsTable).where(sql`DATE(${maintenanceRequestsTable.createdAt}) = CURRENT_DATE`),
+      db.select({ count: sql<number>`count(*)::int` }).from(resourceBookingsTable).where(sql`${resourceBookingsTable.status} IN ('upcoming', 'ongoing')`),
+      db.select({ count: sql<number>`count(*)::int` }).from(transferRequestsTable).where(eq(transferRequestsTable.status, "requested")),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetAllocationsTable).where(and(eq(assetAllocationsTable.status, "active"), sql`${assetAllocationsTable.expectedReturnDate} < CURRENT_DATE`)),
+      db.select({ count: sql<number>`count(*)::int` }).from(assetAllocationsTable).where(and(eq(assetAllocationsTable.status, "active"), sql`${assetAllocationsTable.expectedReturnDate} BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'`)),
+      db.select().from(activityLogsTable).orderBy(sql`${activityLogsTable.createdAt} DESC`).limit(10),
+    ]);
+  }
 
   const users = await db.select().from(usersTable);
   const userMap = new Map(users.map(u => [u.id, u.name]));

@@ -33,7 +33,13 @@ function formatAsset(
 }
 
 router.get("/assets", requireAuth, async (req, res): Promise<void> => {
-  const { search, status, category, department } = req.query;
+  const user = req.session.user!;
+  const { search, status, category } = req.query;
+  // Department heads are always scoped to their own department — ignore any client-provided dept param
+  const department = (user.role === "department_head" && user.departmentId)
+    ? String(user.departmentId)
+    : req.query.department;
+
   const conditions = [];
   if (status && typeof status === "string") conditions.push(eq(assetsTable.status, status));
   if (category) conditions.push(eq(assetsTable.categoryId, Number(category)));

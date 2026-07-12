@@ -4,10 +4,13 @@ import {
   useListTransferRequests,
   useCreateAllocation,
   useReturnAllocation,
+  useApproveTransferRequest,
+  useRejectTransferRequest,
   useListAssets,
   useListUsers,
   getListAllocationsQueryKey,
   getListAssetsQueryKey,
+  getListTransferRequestsQueryKey,
   useGetMe
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,7 +18,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { 
-  ArrowRightLeft, ArrowLeftRight, Check, X, Clock, CornerDownLeft, FileSignature, AlertTriangle, ChevronRight
+  ArrowRightLeft, ArrowLeftRight, Check, X, Clock, CornerDownLeft, FileSignature, AlertTriangle, ChevronRight, ShieldCheck
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -42,15 +45,28 @@ export default function Allocations() {
   const queryClient = useQueryClient();
   const { data: me } = useGetMe();
   const isManager = me?.role === "admin" || me?.role === "asset_manager";
+  const isDeptHead = me?.role === "department_head";
+  const canIssue = isManager || isDeptHead;
 
   const { data: allocations, isLoading: isLoadingAllocations } = useListAllocations({ status: "active" });
   const { data: history } = useListAllocations({ status: "returned" });
-  
-  const { data: assets } = useListAssets({ status: "available" }); // Only available assets for new allocations
-  const { data: users } = useListUsers();
+  const { data: pendingTransfers, isLoading: isLoadingTransfers } = useListTransferRequests({ status: "requested" });
+
+  // For dept_head: scope available assets to their department; for managers: all available
+  const assetParams: any = { status: "available" };
+  if (isDeptHead && me?.departmentId) assetParams.department = me.departmentId;
+  const { data: assets } = useListAssets(assetParams);
+
+  const { data: allUsers } = useListUsers();
+  // For dept_head: only show employees in their own department
+  const users = isDeptHead && me?.departmentId
+    ? (allUsers?.filter(u => u.departmentId === me.departmentId) ?? [])
+    : (allUsers ?? []);
 
   const createAllocation = useCreateAllocation();
   const returnAllocation = useReturnAllocation();
+  const approveTransfer = useApproveTransferRequest();
+  const rejectTransfer = useRejectTransferRequest();
 
   const [returnOpenId, setReturnOpenId] = useState<number | null>(null);
 
@@ -70,7 +86,8 @@ export default function Allocations() {
         assetId: values.assetId,
         employeeId: values.employeeId,
         expectedReturnDate: values.expectedReturnDate || null,
-        departmentId: null
+        // For dept_head: pass their departmentId; backend will enforce it anyway
+        departmentId: isDeptHead && me?.departmentId ? me.departmentId : null,
       } },
       {
         onSuccess: () => {
@@ -100,6 +117,35 @@ export default function Allocations() {
     );
   };
 
+  const onApprove = (transferId: number) => {
+    approveTransfer.mutate(
+      { id: transferId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListTransferRequestsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getListAllocationsQueryKey() });
+          toast.success("Transfer approved — allocation updated");
+        },
+        onError: (err: any) => toast.error(err.message || "Failed to approve transfer"),
+      }
+    );
+  };
+
+  const onReject = (transferId: number) => {
+    rejectTransfer.mutate(
+      { id: transferId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListTransferRequestsQueryKey() });
+          toast.success("Transfer rejected");
+        },
+        onError: (err: any) => toast.error(err.message || "Failed to reject transfer"),
+      }
+    );
+  };
+
+  const pendingCount = pendingTransfers?.length ?? 0;
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
@@ -109,14 +155,19 @@ export default function Allocations() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column: Actions */}
+        {/* Left Column: Issue + Transfer Approvals */}
         <div className="lg:col-span-1 flex flex-col gap-6">
-          {isManager && (
+          {canIssue && (
             <Card className="bg-card border-primary/30 shadow-[0_0_15px_rgba(60,255,208,0.05)]">
               <CardHeader className="pb-3 border-b border-white/5 mb-4">
                 <CardTitle className="font-mono tracking-widest text-primary flex items-center gap-2 text-sm uppercase">
                   <ArrowRightLeft className="h-4 w-4" /> Issue Asset
                 </CardTitle>
+                {isDeptHead && (
+                  <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mt-1">
+                    Scoped to your department
+                  </p>
+                )}
               </CardHeader>
               <CardContent>
                 <Form {...allocateForm}>
@@ -126,7 +177,9 @@ export default function Allocations() {
                       name="assetId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">Available Asset</FormLabel>
+                          <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">
+                            Available Asset {isDeptHead && <span className="text-primary">(Dept)</span>}
+                          </FormLabel>
                           <Select onValueChange={field.onChange} value={field.value?.toString() || ""}>
                             <FormControl>
                               <SelectTrigger className="bg-black/40 font-mono text-xs border-white/10">
@@ -154,7 +207,9 @@ export default function Allocations() {
                       name="employeeId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">Assign To</FormLabel>
+                          <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">
+                            Assign To {isDeptHead && <span className="text-primary">(Dept)</span>}
+                          </FormLabel>
                           <Select onValueChange={field.onChange} value={field.value?.toString() || ""}>
                             <FormControl>
                               <SelectTrigger className="bg-black/40 font-mono text-xs border-white/10">
@@ -162,7 +217,7 @@ export default function Allocations() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {users?.map((u) => (
+                              {users.map((u) => (
                                 <SelectItem key={u.id} value={u.id.toString()} className="text-xs">
                                   {u.name} <span className="text-muted-foreground font-mono ml-2">({u.email})</span>
                                 </SelectItem>
@@ -197,18 +252,48 @@ export default function Allocations() {
             </Card>
           )}
 
-          <Card className="bg-card border-card-border">
-            <CardHeader className="pb-3 border-b border-white/5">
-              <CardTitle className="font-mono tracking-widest text-muted-foreground flex items-center gap-2 text-sm uppercase">
-                <FileSignature className="h-4 w-4" /> Transfer Requests
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="text-center p-4 text-xs font-mono text-muted-foreground border border-dashed border-white/10 rounded">
-                NO PENDING TRANSFERS
-              </div>
-            </CardContent>
-          </Card>
+          {/* Pending Approvals quick-count card for dept_head */}
+          {isDeptHead && (
+            <Card className={`bg-card border-card-border ${pendingCount > 0 ? 'border-accent/40' : ''}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="font-mono tracking-widest text-muted-foreground flex items-center gap-2 text-sm uppercase">
+                  <ShieldCheck className={`h-4 w-4 ${pendingCount > 0 ? 'text-accent' : ''}`} /> Dept Approvals
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingCount > 0 ? (
+                  <div className="text-xs font-mono text-accent uppercase tracking-wider">
+                    {pendingCount} TRANSFER{pendingCount !== 1 ? 'S' : ''} AWAITING YOUR APPROVAL
+                  </div>
+                ) : (
+                  <div className="text-xs font-mono text-muted-foreground">No pending approvals</div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {!isDeptHead && (
+            <Card className="bg-card border-card-border">
+              <CardHeader className="pb-3 border-b border-white/5">
+                <CardTitle className="font-mono tracking-widest text-muted-foreground flex items-center gap-2 text-sm uppercase">
+                  <FileSignature className="h-4 w-4" /> Transfer Requests
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {isLoadingTransfers ? (
+                  <div className="text-center p-4 text-xs font-mono text-muted-foreground">LOADING...</div>
+                ) : pendingCount === 0 ? (
+                  <div className="text-center p-4 text-xs font-mono text-muted-foreground border border-dashed border-white/10 rounded">
+                    NO PENDING TRANSFERS
+                  </div>
+                ) : (
+                  <div className="text-xs font-mono text-accent uppercase tracking-wider">
+                    {pendingCount} pending — see Approvals tab
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right Column: Lists */}
@@ -217,6 +302,14 @@ export default function Allocations() {
             <TabsList className="bg-black/20 p-1 border border-white/10 self-start">
               <TabsTrigger value="active" className="font-mono uppercase tracking-wider text-xs">ACTIVE CUSTODY</TabsTrigger>
               <TabsTrigger value="history" className="font-mono uppercase tracking-wider text-xs">RETURN LOG</TabsTrigger>
+              {(isManager || isDeptHead) && (
+                <TabsTrigger value="approvals" className="font-mono uppercase tracking-wider text-xs relative">
+                  APPROVALS
+                  {pendingCount > 0 && (
+                    <span className="ml-1.5 bg-accent text-black text-[9px] font-bold px-1 py-0 rounded-full">{pendingCount}</span>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="active" className="mt-4 flex-1">
@@ -256,7 +349,7 @@ export default function Allocations() {
                         </div>
                       </div>
 
-                      {(isManager || a.employeeId === me?.id) && (
+                      {(isManager || isDeptHead || a.employeeId === me?.id) && (
                         <div className="flex sm:flex-col justify-end gap-2 shrink-0">
                           <Dialog open={returnOpenId === a.id} onOpenChange={(open) => !open && setReturnOpenId(null)}>
                             <DialogTrigger asChild>
@@ -328,6 +421,70 @@ export default function Allocations() {
                  )}
                </div>
             </TabsContent>
+
+            {(isManager || isDeptHead) && (
+              <TabsContent value="approvals" className="mt-4 flex-1">
+                <div className="space-y-3">
+                  {isDeptHead && (
+                    <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground uppercase tracking-wider pb-2 border-b border-white/5">
+                      <ShieldCheck className="h-3 w-3 text-primary" />
+                      Showing transfers for your department's assets only
+                    </div>
+                  )}
+                  {isLoadingTransfers ? (
+                    <div className="text-center p-12 text-muted-foreground font-mono text-sm uppercase border border-border rounded-xl">LOADING...</div>
+                  ) : pendingCount === 0 ? (
+                    <div className="text-center p-12 text-muted-foreground font-mono text-sm uppercase border border-border rounded-xl bg-black/20">
+                      NO PENDING TRANSFER REQUESTS
+                    </div>
+                  ) : (
+                    pendingTransfers?.map((t) => (
+                      <div key={t.id} className="flex flex-col sm:flex-row gap-4 p-4 rounded-xl border border-accent/20 bg-accent/5">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-mono text-[10px] px-1.5 py-0 border-accent/50 text-accent bg-accent/10">
+                              {t.assetTag}
+                            </Badge>
+                            <span className="font-bold">{t.assetName}</span>
+                          </div>
+                          <div className="flex items-center text-sm gap-1 text-muted-foreground">
+                            <ArrowLeftRight className="h-3 w-3" />
+                            <span className="text-foreground">{t.fromEmployeeName || 'Unallocated'}</span>
+                            <span className="text-xs font-mono mx-1">→</span>
+                            <span className="text-foreground">{t.toEmployeeName}</span>
+                          </div>
+                          {t.reason && (
+                            <div className="text-xs text-muted-foreground italic">"{t.reason}"</div>
+                          )}
+                          <div className="text-[10px] font-mono text-muted-foreground">
+                            Requested {format(parseISO(t.requestedAt), 'MMM d, yyyy')}
+                          </div>
+                        </div>
+                        <div className="flex sm:flex-col gap-2 shrink-0 justify-end">
+                          <Button
+                            size="sm"
+                            className="font-mono text-xs tracking-wider bg-primary text-black hover:bg-primary/80"
+                            onClick={() => onApprove(t.id)}
+                            disabled={approveTransfer.isPending}
+                          >
+                            <Check className="h-3 w-3 mr-1" /> APPROVE
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="font-mono text-xs tracking-wider border-destructive/50 text-destructive hover:bg-destructive hover:text-white"
+                            onClick={() => onReject(t.id)}
+                            disabled={rejectTransfer.isPending}
+                          >
+                            <X className="h-3 w-3 mr-1" /> REJECT
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </div>

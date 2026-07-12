@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useGetDashboardStats, useListOverdueAllocations } from "@workspace/api-client-react";
+import { useGetDashboardStats, useListOverdueAllocations, useGetMe } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,16 +16,20 @@ import {
 import { formatDistanceToNow, parseISO } from "date-fns";
 
 export default function Dashboard() {
+  const { data: me } = useGetMe();
+  const isDeptHead = me?.role === "department_head";
+  const isManager = me?.role === "admin" || me?.role === "asset_manager";
   const { data: stats, isLoading: isStatsLoading } = useGetDashboardStats({ query: { refetchInterval: 30000 } });
   const { data: overdue, isLoading: isOverdueLoading } = useListOverdueAllocations({ query: { refetchInterval: 30000 } });
 
+  const kpiLabel = (base: string) => isDeptHead ? `DEPT ${base}` : base;
   const kpis = [
-    { label: "AVAILABLE ASSETS", value: stats?.availableAssets || 0, total: stats?.totalAssets },
-    { label: "ALLOCATED", value: stats?.allocatedAssets || 0 },
+    { label: kpiLabel("AVAILABLE"), value: stats?.availableAssets || 0, total: stats?.totalAssets },
+    { label: kpiLabel("ALLOCATED"), value: stats?.allocatedAssets || 0 },
     { label: "MAINTENANCE TODAY", value: stats?.maintenanceToday || 0 },
-    { label: "ACTIVE BOOKINGS", value: stats?.activeBookings || 0 },
-    { label: "PENDING TRANSFERS", value: stats?.pendingTransfers || 0 },
-    { label: "UPCOMING RETURNS", value: stats?.upcomingReturns || 0 },
+    { label: kpiLabel("BOOKINGS"), value: stats?.activeBookings || 0 },
+    { label: isDeptHead ? "PENDING APPROVALS" : "PENDING TRANSFERS", value: stats?.pendingTransfers || 0, highlight: isDeptHead && (stats?.pendingTransfers || 0) > 0 },
+    { label: kpiLabel("UPCOMING RETURNS"), value: stats?.upcomingReturns || 0 },
   ];
 
   return (
@@ -77,11 +81,11 @@ export default function Dashboard() {
       {/* KPI ROW */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {kpis.map((kpi, idx) => (
-          <Card key={idx} className="bg-card border-card-border overflow-hidden group">
+          <Card key={idx} className={`bg-card overflow-hidden group ${(pki as any)?.highlight ? 'border-accent/50' : 'border-card-border'}`}>
             <CardContent className="p-5 flex flex-col justify-between h-full relative">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">{kpi.label}</div>
               <div className="flex items-end gap-2 mt-auto">
-                <div className="text-4xl font-bold font-mono tracking-tighter group-hover:text-primary transition-colors">
+                <div className={`text-4xl font-bold font-mono tracking-tighter group-hover:text-primary transition-colors ${(kpi as any).highlight ? 'text-accent' : ''}`}>
                   {isStatsLoading ? "-" : kpi.value}
                 </div>
                 {kpi.total !== undefined && (

@@ -30,11 +30,16 @@ async function formatAllocation(a: typeof assetAllocationsTable.$inferSelect) {
 }
 
 router.get("/allocations", requireAuth, async (req, res): Promise<void> => {
+  const sessionUser = req.session.user!;
   const { assetId, employeeId, status } = req.query;
   const conditions = [];
   if (assetId) conditions.push(eq(assetAllocationsTable.assetId, Number(assetId)));
   if (employeeId) conditions.push(eq(assetAllocationsTable.employeeId, Number(employeeId)));
   if (status && typeof status === "string") conditions.push(eq(assetAllocationsTable.status, status));
+  // Department heads only see allocations for assets in their own department
+  if (sessionUser.role === "department_head" && sessionUser.departmentId) {
+    conditions.push(sql`${assetAllocationsTable.assetId} IN (SELECT id FROM assets WHERE department_id = ${sessionUser.departmentId})`);
+  }
 
   const allocs = conditions.length
     ? await db.select().from(assetAllocationsTable).where(and(...conditions)).orderBy(sql`${assetAllocationsTable.allocatedAt} DESC`)
@@ -94,6 +99,13 @@ router.get("/allocations/overdue", requireAuth, async (_req, res): Promise<void>
 });
 
 router.post("/allocations", requireAuth, async (req, res): Promise<void> => {
+  const sessionUser = req.session.user!;
+  // Only admin, asset_manager, and department_head may allocate assets
+  if (!["admin", "asset_manager", "department_head"].includes(sessionUser.role)) {
+    res.status(403).json({ error: "Insufficient permissions to allocate assets" });
+    return;
+  }
+
   const { assetId, employeeId, departmentId, expectedReturnDate } = req.body;
   if (!assetId || !employeeId) {
     res.status(400).json({ error: "assetId and employeeId are required" });
@@ -104,6 +116,23 @@ router.post("/allocations", requireAuth, async (req, res): Promise<void> => {
   if (!asset) {
     res.status(404).json({ error: "Asset not found" });
     return;
+  }
+
+  // Department head: enforce department-scoping on both asset and recipient
+  if (sessionUser.role === "department_head") {
+    if (!sessionUser.departmentId) {
+      res.status(403).json({ error: "Department head has no department assigned" });
+      return;
+    }
+    if (asset.departmentId !== sessionUser.departmentId) {
+      res.status(403).json({ error: "You can only allocate assets within your own department" });
+      return;
+    }
+    const [emp] = await db.select().from(usersTable).where(eq(usersTable.id, employeeId));
+    if (!emp || emp.departmentId !== sessionUser.departmentId) {
+      res.status(403).json({ error: "You can only allocate assets within your own department" });
+      return;
+    }
   }
 
   if (asset.status !== "available") {
@@ -129,12 +158,17 @@ router.post("/allocations", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  // For department heads, always tag the allocation to their own department
+  const effectiveDeptId = (sessionUser.role === "department_head" && sessionUser.departmentId)
+    ? sessionUser.departmentId
+    : (departmentId ?? null);
+
   const [alloc] = await db.insert(assetAllocationsTable).values({
     assetId,
     employeeId,
-    departmentId: departmentId ?? null,
+    departmentId: effectiveDeptId,
     expectedReturnDate: expectedReturnDate ?? null,
-    createdBy: req.session.user!.id,
+    createdBy: sessionUser.id,
   }).returning();
 
   await db.update(assetsTable).set({ status: "allocated", updatedAt: new Date() }).where(eq(assetsTable.id, assetId));
