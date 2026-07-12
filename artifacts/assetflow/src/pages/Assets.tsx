@@ -6,7 +6,9 @@ import {
   useListDepartments,
   useCreateAsset,
   useGetMe,
-  getListAssetsQueryKey
+  getListAssetsQueryKey,
+  Asset,
+  AssetInput
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";

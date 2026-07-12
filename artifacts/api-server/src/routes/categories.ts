@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, assetCategoriesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "../lib/auth";
+import { requireAuth, requireRole } from "../lib/auth";
 import { logActivity } from "../lib/activityLogger";
 
 const router = Router();
@@ -20,7 +20,7 @@ router.get("/categories", requireAuth, async (_req, res): Promise<void> => {
   res.json(cats.map(formatCategory));
 });
 
-router.post("/categories", requireAuth, async (req, res): Promise<void> => {
+router.post("/categories", requireAuth, requireRole("admin", "asset_manager"), async (req, res): Promise<void> => {
   const { name, extraFields } = req.body;
   if (!name) {
     res.status(400).json({ error: "name is required" });
@@ -34,7 +34,7 @@ router.post("/categories", requireAuth, async (req, res): Promise<void> => {
   res.status(201).json(formatCategory(cat));
 });
 
-router.patch("/categories/:id", requireAuth, async (req, res): Promise<void> => {
+router.patch("/categories/:id", requireAuth, requireRole("admin", "asset_manager"), async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   const { name, extraFields } = req.body;

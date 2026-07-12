@@ -35,6 +35,10 @@ router.get("/transfer-requests", requireAuth, async (req, res): Promise<void> =>
   if (sessionUser.role === "department_head" && sessionUser.departmentId) {
     conditions.push(sql`${transferRequestsTable.assetId} IN (SELECT id FROM assets WHERE department_id = ${sessionUser.departmentId})`);
   }
+  // Employees only see transfers they are involved in
+  if (sessionUser.role === "employee") {
+    conditions.push(sql`(${transferRequestsTable.fromEmployeeId} = ${sessionUser.id} OR ${transferRequestsTable.toEmployeeId} = ${sessionUser.id})`);
+  }
 
   const transfers = conditions.length
     ? await db.select().from(transferRequestsTable).where(and(...conditions)).orderBy(sql`${transferRequestsTable.requestedAt} DESC`)

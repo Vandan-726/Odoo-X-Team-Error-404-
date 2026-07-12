@@ -7,14 +7,15 @@ import {
   useCloseAuditCycle,
   useListDepartments,
   getListAuditCyclesQueryKey,
-  getGetAuditCycleQueryKey
+  getGetAuditCycleQueryKey,
+  useGetMe
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { 
-  ClipboardCheck, Plus, Search, CheckCircle2, XCircle, AlertTriangle, HelpCircle, Lock
+  ClipboardCheck, Plus, Search, CheckCircle2, XCircle, AlertTriangle, HelpCircle, Lock, ShieldAlert
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,15 +36,18 @@ const createSchema = z.object({
 });
 
 export default function Audit() {
+  const { data: me } = useGetMe();
   const queryClient = useQueryClient();
   const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
   const { data: cycles, isLoading: isLoadingCycles } = useListAuditCycles();
   const { data: departments } = useListDepartments();
-  const { data: activeCycle, isLoading: isLoadingCycle } = useGetAuditCycle(selectedCycleId!, {
+  const { data: activeCycle, isLoading: isLoadingCycle } = useGetAuditCycle(selectedCycleId || 0, {
     query: { enabled: !!selectedCycleId } as any
   });
+
+  const { data: departments } = useListDepartments();
 
   const createCycle = useCreateAuditCycle();
   const verifyItem = useVerifyAuditItem();
@@ -51,8 +55,24 @@ export default function Audit() {
 
   const form = useForm<z.infer<typeof createSchema>>({
     resolver: zodResolver(createSchema),
-    defaultValues: { name: "", startDate: format(new Date(), 'yyyy-MM-dd'), endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd') },
+    defaultValues: {
+      name: "",
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split("T")[0],
+    }
   });
+
+  if (me?.role === "employee") {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] text-center space-y-4">
+        <ShieldAlert className="h-16 w-16 text-destructive" />
+        <h2 className="text-2xl font-bold tracking-tight">RESTRICTED ACCESS</h2>
+        <p className="text-muted-foreground font-mono text-sm uppercase max-w-md">
+          Asset Audits are restricted to management personnel. Your current clearance level ({me?.role}) does not grant access to this module.
+        </p>
+      </div>
+    );
+  }
 
   const onCreate = (values: z.infer<typeof createSchema>) => {
     createCycle.mutate(
@@ -124,63 +144,27 @@ export default function Audit() {
           <p className="text-muted-foreground font-mono text-sm mt-1 uppercase tracking-wider">Verification & Compliance</p>
         </div>
 
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="font-mono tracking-wider bg-white text-black hover:bg-white/90">
-              <Plus className="mr-2 h-4 w-4" /> INITIATE AUDIT
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="border-border bg-card">
-            <DialogHeader>
-              <DialogTitle className="font-mono tracking-widest uppercase">INITIALIZE AUDIT CYCLE</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onCreate)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">Cycle Designation</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Q3 2024 General Audit" {...field} className="bg-black/40 border-white/10 uppercase" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="scopeDepartmentId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">Scope (Department)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value?.toString() || ""}>
-                        <FormControl>
-                          <SelectTrigger className="bg-black/40 border-white/10 font-mono text-sm">
-                            <SelectValue placeholder="ALL DEPARTMENTS" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">ALL DEPARTMENTS</SelectItem>
-                          {departments?.map((d) => (
-                            <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
+        {(me?.role === "admin" || me?.role === "asset_manager") && (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="font-mono tracking-wider bg-white text-black hover:bg-white/90">
+                <Plus className="mr-2 h-4 w-4" /> INITIATE AUDIT
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="border-border bg-card">
+              <DialogHeader>
+                <DialogTitle className="font-mono tracking-widest uppercase">INITIALIZE AUDIT CYCLE</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onCreate)} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="startDate"
+                    name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">Start Date</FormLabel>
+                        <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">Cycle Designation</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} className="bg-black/40 border-white/10 [color-scheme:dark] font-mono text-xs" />
+                          <Input placeholder="e.g. Q3 2024 General Audit" {...field} className="bg-black/40 border-white/10 uppercase" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -188,25 +172,63 @@ export default function Audit() {
                   />
                   <FormField
                     control={form.control}
-                    name="endDate"
+                    name="scopeDepartmentId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">End Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} className="bg-black/40 border-white/10 [color-scheme:dark] font-mono text-xs" />
-                        </FormControl>
+                        <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">Scope (Department)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value?.toString() || ""}>
+                          <FormControl>
+                            <SelectTrigger className="bg-black/40 border-white/10 font-mono text-sm">
+                              <SelectValue placeholder="ALL DEPARTMENTS" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">ALL DEPARTMENTS</SelectItem>
+                            {departments?.map((d) => (
+                              <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-                <Button type="submit" className="w-full font-mono tracking-widest mt-4 bg-primary text-black hover:bg-primary/90" disabled={createCycle.isPending}>
-                  GENERATE SNAPSHOT
-                </Button>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">Start Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} className="bg-black/40 border-white/10 [color-scheme:dark] font-mono text-xs" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-mono text-[10px] uppercase text-muted-foreground">End Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} className="bg-black/40 border-white/10 [color-scheme:dark] font-mono text-xs" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full font-mono tracking-widest mt-4 bg-primary text-black hover:bg-primary/90" disabled={createCycle.isPending}>
+                    GENERATE SNAPSHOT
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
@@ -269,7 +291,7 @@ export default function Audit() {
                         Scope: {activeCycle.scopeDepartmentName || 'ALL DEPARTMENTS'} • {format(parseISO(activeCycle.startDate), 'MMM d, yyyy')} to {format(parseISO(activeCycle.endDate), 'MMM d, yyyy')}
                       </CardDescription>
                     </div>
-                    {activeCycle.status === 'in_progress' && (
+                    {activeCycle.status === 'in_progress' && (me?.role === "admin" || me?.role === "asset_manager") && (
                       <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-white font-mono tracking-wider text-xs" onClick={handleClose} disabled={closeCycle.isPending}>
                         <Lock className="w-3 h-3 mr-2" /> CLOSE AUDIT
                       </Button>

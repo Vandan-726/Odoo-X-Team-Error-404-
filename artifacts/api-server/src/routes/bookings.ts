@@ -102,6 +102,22 @@ router.post("/bookings", requireAuth, async (req, res): Promise<void> => {
 router.patch("/bookings/:id/cancel", requireAuth, async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
+  const user = req.session.user!;
+
+  const [booking] = await db.select().from(resourceBookingsTable).where(eq(resourceBookingsTable.id, id));
+  if (!booking) {
+    res.status(404).json({ error: "Booking not found" });
+    return;
+  }
+
+  const isOwner = booking.bookedBy === user.id;
+  const isDeptHeadOfBooking = user.role === "department_head" && user.departmentId === booking.departmentId;
+  const isManager = ["admin", "asset_manager"].includes(user.role);
+
+  if (!isOwner && !isDeptHeadOfBooking && !isManager) {
+    res.status(403).json({ error: "Unauthorized to cancel this booking" });
+    return;
+  }
 
   const [updated] = await db.update(resourceBookingsTable).set({ status: "cancelled" })
     .where(and(eq(resourceBookingsTable.id, id), sql`${resourceBookingsTable.status} IN ('upcoming', 'ongoing')`))
@@ -114,8 +130,8 @@ router.patch("/bookings/:id/cancel", requireAuth, async (req, res): Promise<void
   await logActivity({ userId: req.session.user!.id, action: "cancel_booking", entityType: "booking", entityId: id });
 
   const [asset] = await db.select().from(assetsTable).where(eq(assetsTable.id, updated.assetId));
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, updated.bookedBy));
-  res.json(formatBooking(updated, asset?.name ?? null, user?.name ?? null));
+  const [bookedUser] = await db.select().from(usersTable).where(eq(usersTable.id, updated.bookedBy));
+  res.json(formatBooking(updated, asset?.name ?? null, bookedUser?.name ?? null));
 });
 
 export default router;
