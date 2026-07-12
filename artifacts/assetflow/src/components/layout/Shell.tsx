@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
   { href: "/dashboard", label: "DASHBOARD", icon: LayoutDashboard },
@@ -103,8 +104,13 @@ export function Shell({ children }: { children: ReactNode }) {
               <NavLinks onClick={() => setMobileMenuOpen(false)} />
             </div>
             <div className="p-4 border-t border-sidebar-border">
-              <div className="text-sm font-bold truncate text-white">{user.name}</div>
-              <div className="text-xs text-muted-foreground font-mono uppercase truncate mb-4">{user.role}</div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col min-w-0">
+                  <div className="text-sm font-bold truncate text-white">{user.name}</div>
+                  <div className="text-xs text-muted-foreground font-mono uppercase truncate">{user.role}</div>
+                </div>
+                <ThemeToggle />
+              </div>
               <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/50 font-mono tracking-wider" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 LOGOUT
@@ -126,9 +132,12 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
         
         <div className="p-6 border-t border-sidebar-border">
-          <div className="flex flex-col gap-1 mb-4">
-            <span className="text-sm font-bold truncate">{user.name}</span>
-            <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider truncate">{user.role?.replace('_', ' ') || ''}</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-sm font-bold truncate">{user.name}</span>
+              <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider truncate">{user.role?.replace('_', ' ') || ''}</span>
+            </div>
+            <ThemeToggle />
           </div>
           <Button variant="outline" className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20 font-mono tracking-wider" onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
