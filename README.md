@@ -41,8 +41,14 @@ Full product spec: see [`AssetFlow_PRD.md`](./AssetFlow_PRD.md).
 - **Double-allocation block** — attempting to allocate an already-held asset is rejected server-side, names the current holder, and offers a Transfer Request instead of a dead end.
 - **Booking overlap validation** — shared/bookable resources reject overlapping time-slot requests; back-to-back bookings are correctly allowed.
 - **Maintenance approval workflow** — Pending → Approved/Rejected → Technician Assigned → In Progress → Resolved, with the asset's status auto-updating on approval and resolution.
+- **🤖 AI-powered natural language asset search** — type queries like _"show available laptops in the IT department"_ and the Groq LLM (`llama3-8b-8192`) extracts structured filters (category, department, status, condition) to query the database. Accessible via the "Smart Search" bar in the Asset Directory.
+- **🤖 AI predictive maintenance diagnostics** — submit a maintenance issue description and the Groq AI auto-classifies its priority (`low`/`medium`/`high`/`critical`) and suggests immediate troubleshooting steps. Triggered via the "AI Auto-Diagnose" button on the Maintenance screen.
+- **QR code generation** — each asset gets a dynamically generated QR code (via the `qrcode` library), displayed in the Asset Detail Sheet for quick identification and scanning.
+- **Asset Detail Sheet** — clicking any asset opens a slide-over panel showing full asset metadata, QR code, and complete maintenance history.
+- **Light / Dark theme toggle** — system-aware theme switching (via `next-themes`) with a toggle button in the app shell header. Supports light, dark, and system-preference modes.
+- **CSV report export** — one-click export of utilization reports as `.csv` files from the Analytics & Reports page.
 - **Audit cycles** — scoped by department/location, multi-auditor assignment, auto-generated discrepancy report, and a transactional "Close Cycle" that cascades missing items to `Lost` status.
-- **Live dashboard & reports** — KPIs, overdue-return alerts, utilization and maintenance-frequency analytics — all computed from live database queries, not static fixtures.
+- **Live dashboard & reports** — KPIs, overdue-return alerts, utilization and maintenance-frequency analytics, idle asset detection — all computed from live database queries, not static fixtures.
 - **Tamper-evident activity log** — each log entry is hash-chained to the previous one, with a "Verify Integrity" check to detect tampering.
 - **Notifications** — asset assignment, approvals, booking confirmations/cancellations, overdue alerts, and audit discrepancies all surface in a unified feed.
 
@@ -52,16 +58,21 @@ Full product spec: see [`AssetFlow_PRD.md`](./AssetFlow_PRD.md).
 
 | Layer | Choice |
 |---|---|
-| Frontend | React (Vite) + TypeScript + Tailwind CSS |
-| Backend | Node.js + Express + TypeScript |
+| Frontend | React 19 (Vite) + TypeScript + Tailwind CSS |
+| Backend | Node.js + Express 5 + TypeScript |
 | Database | PostgreSQL |
 | ORM | Drizzle ORM (schema-as-code + migrations) |
 | Auth | express-session + bcrypt (no third-party auth provider) |
-| Validation | Zod |
+| API Client | OpenAPI 3.1 spec + Orval codegen → React Query hooks + Zod schemas |
+| AI / LLM | Groq SDK (`llama3-8b-8192`) — NL asset search & maintenance diagnostics |
+| Validation | Zod (generated from OpenAPI spec) |
 | Charts | Recharts |
+| QR Codes | `qrcode` (server-side DataURL generation) |
+| Theming | `next-themes` (light / dark / system) |
+| Monorepo | pnpm workspaces |
 | Design System | Custom dark/hazard-accent system — see [`design.md`](./design.md) |
 
-No paid or rate-limited third-party APIs are required to run or demo the app.
+> **Note:** The Groq API requires a free API key (`GROQ_API_KEY` in `.env`). All other components run fully offline.
 
 ---
 
@@ -196,26 +207,30 @@ Additional employee/manager/department-head accounts are seeded with predictable
 
 ## Project Structure
 
+This is a **pnpm monorepo**. Key workspace packages:
+
 ```
-assetflow/
-├── client/                  # React + Vite frontend
-│   ├── src/
-│   │   ├── pages/            # 10 screens (Dashboard, OrgSetup, Assets, Allocation, Booking, Maintenance, Audit, Reports, Notifications, Auth)
-│   │   ├── components/       # Shared UI (pills, cards, tables, kanban board, forms)
-│   │   ├── lib/               # API client, theme tokens
-│   │   └── theme/             # Tailwind config extension matching design.md
-├── server/                  # Express + TypeScript backend
-│   ├── routes/                # Domain route handlers (assets, allocations, bookings, maintenance, audits, reports)
-│   ├── middleware/            # Auth + RBAC
-│   ├── services/              # Business logic (allocation block, overlap check, workflow transitions, hash-chain)
-│   └── db/
-│       ├── schema.ts           # Drizzle schema (source of truth, mirrors PRD §7)
-│       ├── migrate.ts
-│       └── seed.ts
-├── AssetFlow_PRD.md         # Full product requirements document
-├── AssetFlow_Replit_Build_Prompt.md   # Build prompt used to scaffold the app
-├── design.md                 # Design system this UI follows
-└── README.md                 # You are here
+Odoo-X-Team-Error-404-/
+├── artifacts/
+│   ├── api-server/              # Express 5 + TypeScript REST API
+│   │   └── src/
+│   │       ├── routes/           # Domain routes (assets, allocations, bookings, maintenance, audits, reports, transfers, users)
+│   │       └── lib/              # Auth middleware, RBAC, activity logger, notifications
+│   └── assetflow/               # React 19 + Vite + Tailwind frontend SPA
+│       └── src/
+│           ├── pages/            # 11 screens (Dashboard, Org, Assets, Allocations, Bookings, Maintenance, Audit, Reports, Notifications, Auth, AssetDetail)
+│           ├── components/       # UI components (shadcn/ui), ThemeToggle, layout Shell
+│           └── lib/              # Utility helpers
+├── lib/
+│   ├── db/                      # Drizzle ORM schema + PostgreSQL pool + seed
+│   ├── api-spec/                # OpenAPI 3.1 spec + Orval codegen config
+│   ├── api-client-react/        # Generated React Query hooks (via Orval)
+│   └── api-zod/                 # Generated Zod validators (via Orval)
+├── scripts/                     # Build & utility scripts
+├── assetflow.md                 # Full product requirements document
+├── security_and_code_audit.md   # Security audit report
+├── pnpm-workspace.yaml          # Workspace configuration
+└── README.md                    # You are here
 ```
 
 ---
@@ -225,15 +240,19 @@ assetflow/
 Full endpoint list in [`AssetFlow_PRD.md`](./AssetFlow_PRD.md) §8. Grouped summary:
 
 ```
-/auth/*              signup, login, logout, session check
-/departments, /categories, /users     org setup (admin-gated writes)
-/assets               register, search/filter, detail + history
-/allocations           allocate (409 on conflict), return
-/transfer-requests      request, approve, reject
-/bookings              create (409 on overlap), cancel
-/maintenance-requests   raise, approve/reject, assign technician, resolve
-/audit-cycles           create, verify item, close (transactional cascade)
-/reports/*             utilization, maintenance frequency, idle assets, booking heatmap
+/auth/*                      signup, login, logout, session check
+/departments, /categories    org setup (admin-gated writes)
+/users                       list, promote roles, activate/deactivate
+/assets                      register, search/filter, detail + history
+/assets/smart-search         🤖 AI natural language search (Groq LLM)
+/assets/:id/qrcode           QR code generation (DataURL)
+/allocations                 allocate (409 on conflict), return
+/transfer-requests           request, approve, reject
+/bookings                    create (409 on overlap), cancel
+/maintenance-requests        raise, approve/reject, assign technician, resolve
+/maintenance-requests/diagnose  🤖 AI predictive diagnostics (Groq LLM)
+/audit-cycles                create, verify item, close (transactional cascade)
+/reports/*                   utilization, maintenance frequency, idle assets, booking heatmap
 /notifications, /activity-logs
 ```
 
@@ -286,19 +305,17 @@ This project was built in a single 8-hour sprint (9 AM–5 PM) by a 4-person tea
 Deliberately deferred to protect the 8-hour timeline — documented here rather than left unexplained:
 
 - No real file/photo upload — asset and maintenance-request photos use a plain URL field.
-- No QR-code camera scanning — asset lookup is text/tag search only.
+- No QR-code camera scanning — QR codes are generated and displayed, but not scanned via camera.
 - No email delivery — notifications are in-app only.
 - No password-reset email flow — UI stub only.
 - No drag-and-drop on the Kanban board or booking calendar — status changes are button-driven.
 - No automated test suite — verified via the manual checklist above.
-- "AI insights" on the Reports screen are rule-based heuristics (idle-asset detection, keyword-based maintenance priority), not a trained model — stated plainly rather than oversold.
 - Activity-log tamper-evidence uses a hash chain, not a distributed ledger — a scoped, honest analog to "blockchain," not a literal blockchain integration.
 
-Full rationale for these cuts: see [`AssetFlow_PRD.md`](./AssetFlow_PRD.md) §12 (MoSCoW).
+Full rationale for these cuts: see [`assetflow.md`](./assetflow.md) §12 (MoSCoW).
 
 ---
 
 ## License
 
 Built for hackathon evaluation purposes. Add a license here if the project continues past the event (MIT is a reasonable default for hackathon code).
->>>>>>> origin/main
