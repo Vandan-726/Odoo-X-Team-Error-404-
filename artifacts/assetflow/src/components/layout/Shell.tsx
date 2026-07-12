@@ -63,7 +63,12 @@ export function Shell({ children }: { children: ReactNode }) {
 
   const NavLinks = ({ onClick }: { onClick?: () => void }) => (
     <div className="flex flex-col gap-2 w-full mt-8">
-      {navItems.map((item) => {
+      {navItems.filter(item => {
+        if (!user) return false;
+        if (item.href === "/org") return user.role === "admin";
+        if (item.href === "/reports") return user.role !== "employee";
+        return true;
+      }).map((item) => {
         const isActive = location === item.href || location.startsWith(item.href + "/");
         return (
           <Link key={item.href} href={item.href} onClick={onClick} className={`flex items-center gap-3 px-4 py-3 text-sm font-mono tracking-wider transition-colors hover:text-primary ${isActive ? 'text-primary border-l-2 border-primary bg-white/5' : 'text-muted-foreground'}`}>

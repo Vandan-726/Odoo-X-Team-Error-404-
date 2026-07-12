@@ -11,9 +11,22 @@ import {
 import { formatDistanceToNow, parseISO } from "date-fns";
 
 export default function Reports() {
+  const { data: me } = useGetMe();
   const { data: utilData, isLoading: isLoadingUtil } = useGetUtilizationReport();
   const { data: maintData, isLoading: isLoadingMaint } = useGetMaintenanceFrequencyReport();
   const { data: idleData, isLoading: isLoadingIdle } = useGetIdleAssetsReport();
+
+  if (me?.role === "employee") {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] text-center space-y-4">
+        <ShieldAlert className="h-16 w-16 text-destructive" />
+        <h2 className="text-2xl font-bold tracking-tight">RESTRICTED ACCESS</h2>
+        <p className="text-muted-foreground font-mono text-sm uppercase max-w-md">
+          Analytics and Reports are restricted to management personnel. Your current clearance level ({me?.role}) does not grant access to this module.
+        </p>
+      </div>
+    );
+  }
   
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }: any) => {
