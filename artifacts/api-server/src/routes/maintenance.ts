@@ -4,6 +4,9 @@ import { eq, and, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth";
 import { logActivity } from "../lib/activityLogger";
 import { createNotification } from "../lib/notifications";
+import Groq from "groq-sdk";
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const router = Router();
 
@@ -64,6 +67,40 @@ router.post("/maintenance-requests", requireAuth, async (req, res): Promise<void
   await Promise.all(managers.map(mg => createNotification({ userId: mg.id, type: "maintenance_request", message: `Maintenance request for ${asset?.assetTag ?? assetId}: ${priority} priority`, referenceType: "maintenance", referenceId: m.id })));
 
   res.status(201).json(await getWithDetails(m.id));
+});
+
+router.post("/maintenance-requests/diagnose", requireAuth, async (req, res): Promise<void> => {
+  const { issueDescription } = req.body;
+  if (!issueDescription) {
+    res.status(400).json({ error: "issueDescription is required" });
+    return;
+  }
+  
+  try {
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are an AI predictive maintenance diagnostic assistant. Analyze the maintenance issue description provided by the user. Output a JSON object containing two fields: 'priority' (must be exactly 'low', 'medium', 'high', or 'critical') and 'suggestedSteps' (a short string suggesting immediate troubleshooting or safety steps). ONLY output raw JSON, without any markdown formatting or extra text."
+        },
+        {
+          role: "user",
+          content: issueDescription
+        }
+      ],
+      model: "llama3-8b-8192",
+      response_format: { type: "json_object" }
+    });
+    
+    const responseContent = chatCompletion.choices[0]?.message?.content;
+    if (!responseContent) throw new Error("No response from Groq");
+    
+    const parsed = JSON.parse(responseContent);
+    res.json(parsed);
+  } catch (error) {
+    console.error("Groq diagnostic error:", error);
+    res.status(500).json({ error: "Failed to diagnose the issue" });
+  }
 });
 
 router.patch("/maintenance-requests/:id/approve", requireAuth, async (req, res): Promise<void> => {

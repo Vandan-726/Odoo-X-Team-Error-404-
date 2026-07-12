@@ -6,6 +6,7 @@ import {
   useRejectMaintenanceRequest,
   useAssignTechnician,
   useResolveMaintenanceRequest,
+  useDiagnoseMaintenanceRequest,
   useListAssets,
   useGetMe,
   getListMaintenanceRequestsQueryKey
@@ -55,12 +56,14 @@ export default function Maintenance() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [assignOpenId, setAssignOpenId] = useState<number | null>(null);
+  const [suggestedSteps, setSuggestedSteps] = useState<string | null>(null);
 
   const createReq = useCreateMaintenanceRequest();
   const approveReq = useApproveMaintenanceRequest();
   const rejectReq = useRejectMaintenanceRequest();
   const assignTech = useAssignTechnician();
   const resolveReq = useResolveMaintenanceRequest();
+  const diagnoseReq = useDiagnoseMaintenanceRequest();
 
   const createForm = useForm<z.infer<typeof maintenanceSchema>>({
     resolver: zodResolver(maintenanceSchema),
@@ -80,9 +83,29 @@ export default function Maintenance() {
           queryClient.invalidateQueries({ queryKey: getListMaintenanceRequestsQueryKey() });
           setCreateOpen(false);
           createForm.reset();
+          setSuggestedSteps(null);
           toast.success("Maintenance ticket generated");
         },
         onError: (err: any) => toast.error(err.message || "Failed to create ticket"),
+      }
+    );
+  };
+
+  const handleDiagnose = () => {
+    const desc = createForm.getValues("issueDescription");
+    if (!desc || desc.length < 5) {
+      toast.error("Please describe the issue first");
+      return;
+    }
+    diagnoseReq.mutate(
+      { data: { issueDescription: desc } },
+      {
+        onSuccess: (res) => {
+          createForm.setValue("priority", res.priority as any);
+          setSuggestedSteps(res.suggestedSteps);
+          toast.success("AI Diagnosis complete");
+        },
+        onError: (err: any) => toast.error(err.message || "Diagnostic failed"),
       }
     );
   };
@@ -196,6 +219,22 @@ export default function Maintenance() {
                       <FormControl>
                         <Textarea placeholder="Describe the failure mode..." {...field} className="bg-black/40 border-white/10 min-h-[100px]" />
                       </FormControl>
+                      <Button 
+                        type="button" 
+                        variant="secondary" 
+                        size="sm" 
+                        className="w-full mt-2 font-mono text-xs border border-primary/20 hover:bg-primary/10 transition-colors" 
+                        disabled={diagnoseReq.isPending}
+                        onClick={handleDiagnose}
+                      >
+                        {diagnoseReq.isPending ? "ANALYZING..." : "AI AUTO-DIAGNOSE"}
+                      </Button>
+                      {suggestedSteps && (
+                        <div className="mt-4 p-3 bg-primary/10 border border-primary/30 rounded-md text-sm text-primary font-mono whitespace-pre-wrap">
+                          <strong className="block mb-1 flex items-center gap-1"><AlertCircle className="w-4 h-4" /> AI Suggested Steps:</strong>
+                          {suggestedSteps}
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
