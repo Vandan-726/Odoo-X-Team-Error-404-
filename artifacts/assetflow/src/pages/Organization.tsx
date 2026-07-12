@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useGetMe, useListDepartments, useListCategories, useListUsers, useCreateDepartment, useCreateCategory, useUpdateUserRole, getListDepartmentsQueryKey, getListCategoriesQueryKey, getListUsersQueryKey } from "@workspace/api-client-react";
+import { useGetMe, useListDepartments, useListCategories, useListUsers, useCreateDepartment, useCreateCategory, useUpdateDepartment, useUpdateCategory, useUpdateUserRole, getListDepartmentsQueryKey, getListCategoriesQueryKey, getListUsersQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { ShieldAlert, Plus, Users, Building, Tag } from "lucide-react";
+import { ShieldAlert, Plus, Users, Building, Tag, Pencil } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 const departmentSchema = z.object({
@@ -36,10 +36,14 @@ export default function Organization() {
 
   const createDept = useCreateDepartment();
   const createCat = useCreateCategory();
+  const updateDept = useUpdateDepartment();
+  const updateCat = useUpdateCategory();
   const updateUserRole = useUpdateUserRole();
 
   const [deptOpen, setDeptOpen] = useState(false);
   const [catOpen, setCatOpen] = useState(false);
+  const [editingDept, setEditingDept] = useState<any>(null);
+  const [editingCat, setEditingCat] = useState<any>(null);
 
   const deptForm = useForm<z.infer<typeof departmentSchema>>({
     resolver: zodResolver(departmentSchema),
@@ -47,6 +51,16 @@ export default function Organization() {
   });
 
   const catForm = useForm<z.infer<typeof categorySchema>>({
+    resolver: zodResolver(categorySchema),
+    defaultValues: { name: "" },
+  });
+
+  const editDeptForm = useForm<z.infer<typeof departmentSchema>>({
+    resolver: zodResolver(departmentSchema),
+    defaultValues: { name: "" },
+  });
+
+  const editCatForm = useForm<z.infer<typeof categorySchema>>({
     resolver: zodResolver(categorySchema),
     defaultValues: { name: "" },
   });
@@ -89,6 +103,38 @@ export default function Organization() {
           toast.success("Category created");
         },
         onError: (err: any) => toast.error(err.message || "Failed to create category"),
+      }
+    );
+  };
+
+  const onEditDeptSubmit = (values: z.infer<typeof departmentSchema>) => {
+    if (!editingDept) return;
+    updateDept.mutate(
+      { id: editingDept.id, data: values },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListDepartmentsQueryKey() });
+          setEditingDept(null);
+          editDeptForm.reset();
+          toast.success("Department updated");
+        },
+        onError: (err: any) => toast.error(err.message || "Failed to update department"),
+      }
+    );
+  };
+
+  const onEditCatSubmit = (values: z.infer<typeof categorySchema>) => {
+    if (!editingCat) return;
+    updateCat.mutate(
+      { id: editingCat.id, data: values },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+          setEditingCat(null);
+          editCatForm.reset();
+          toast.success("Category updated");
+        },
+        onError: (err: any) => toast.error(err.message || "Failed to update category"),
       }
     );
   };
@@ -169,13 +215,14 @@ export default function Organization() {
                     <TableHead className="font-mono text-xs uppercase tracking-widest">Personnel</TableHead>
                     <TableHead className="font-mono text-xs uppercase tracking-widest">Status</TableHead>
                     <TableHead className="font-mono text-xs uppercase tracking-widest text-right">Created</TableHead>
+                    <TableHead className="font-mono text-xs uppercase tracking-widest text-right w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoadingDepts ? (
-                    <TableRow><TableCell colSpan={5} className="text-center font-mono text-sm py-8 text-muted-foreground">LOADING...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center font-mono text-sm py-8 text-muted-foreground">LOADING...</TableCell></TableRow>
                   ) : departments?.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center font-mono text-sm py-8 text-muted-foreground">NO DEPARTMENTS</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center font-mono text-sm py-8 text-muted-foreground">NO DEPARTMENTS</TableCell></TableRow>
                   ) : (
                     departments?.map((dept) => (
                       <TableRow key={dept.id} className="border-border/20 hover:bg-white/5">
@@ -188,11 +235,56 @@ export default function Organization() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground text-sm font-mono">{format(parseISO(dept.createdAt), 'MMM d, yyyy')}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-white"
+                            onClick={() => {
+                              setEditingDept(dept);
+                              editDeptForm.reset({ name: dept.name });
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
                 </TableBody>
               </Table>
+              <Dialog open={editingDept !== null} onOpenChange={(open) => !open && setEditingDept(null)}>
+                <DialogContent className="sm:max-w-[425px] border-border bg-card">
+                  <DialogHeader>
+                    <DialogTitle className="font-mono tracking-widest uppercase text-primary">EDIT DEPARTMENT</DialogTitle>
+                  </DialogHeader>
+                  <Form {...editDeptForm}>
+                    <form onSubmit={editDeptForm.handleSubmit(onEditDeptSubmit)} className="space-y-4 mt-4">
+                      <FormField
+                        control={editDeptForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-mono text-xs uppercase tracking-wider">Department Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Engineering" {...field} className="bg-black/20" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" className="font-mono uppercase tracking-wider text-xs" onClick={() => setEditingDept(null)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="font-mono uppercase tracking-wider text-xs" disabled={updateDept.isPending}>
+                          {updateDept.isPending ? "SAVING..." : "SAVE"}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -244,24 +336,70 @@ export default function Organization() {
                     <TableHead className="font-mono text-xs uppercase tracking-widest w-[100px]">ID</TableHead>
                     <TableHead className="font-mono text-xs uppercase tracking-widest">Name</TableHead>
                     <TableHead className="font-mono text-xs uppercase tracking-widest text-right">Created</TableHead>
+                    <TableHead className="font-mono text-xs uppercase tracking-widest text-right w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoadingCats ? (
-                    <TableRow><TableCell colSpan={3} className="text-center font-mono text-sm py-8 text-muted-foreground">LOADING...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="text-center font-mono text-sm py-8 text-muted-foreground">LOADING...</TableCell></TableRow>
                   ) : categories?.length === 0 ? (
-                    <TableRow><TableCell colSpan={3} className="text-center font-mono text-sm py-8 text-muted-foreground">NO CATEGORIES</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={4} className="text-center font-mono text-sm py-8 text-muted-foreground">NO CATEGORIES</TableCell></TableRow>
                   ) : (
                     categories?.map((cat) => (
                       <TableRow key={cat.id} className="border-border/20 hover:bg-white/5">
                         <TableCell className="font-mono text-muted-foreground">#{cat.id}</TableCell>
                         <TableCell className="font-bold">{cat.name}</TableCell>
                         <TableCell className="text-right text-muted-foreground text-sm font-mono">{format(parseISO(cat.createdAt), 'MMM d, yyyy')}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-white"
+                            onClick={() => {
+                              setEditingCat(cat);
+                              editCatForm.reset({ name: cat.name });
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
                 </TableBody>
               </Table>
+              <Dialog open={editingCat !== null} onOpenChange={(open) => !open && setEditingCat(null)}>
+                <DialogContent className="sm:max-w-[425px] border-border bg-card">
+                  <DialogHeader>
+                    <DialogTitle className="font-mono tracking-widest uppercase text-primary">EDIT CATEGORY</DialogTitle>
+                  </DialogHeader>
+                  <Form {...editCatForm}>
+                    <form onSubmit={editCatForm.handleSubmit(onEditCatSubmit)} className="space-y-4 mt-4">
+                      <FormField
+                        control={editCatForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-mono text-xs uppercase tracking-wider">Category Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Laptops" {...field} className="bg-black/20" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" className="font-mono uppercase tracking-wider text-xs" onClick={() => setEditingCat(null)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="font-mono uppercase tracking-wider text-xs" disabled={updateCat.isPending}>
+                          {updateCat.isPending ? "SAVING..." : "SAVE"}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
